@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Grid,
   Paper,
   Step,
   StepLabel,
@@ -107,138 +108,201 @@ export default function QuotesPage() {
   const onSubmit = (values: QuoteFormValues) => submitQuoteMutation.mutate(values);
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Request a quote
-      </Typography>
-      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
+    <Stack spacing={3}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)'
+        }}
+      >
+        <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
+          Quote builder
+        </Typography>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
+          Request a quote in a few guided steps.
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Select a product, share a few details, and receive a tailored estimate with instant confirmation.
+        </Typography>
+      </Paper>
 
-      {activeStep === 0 && (
-        <FormControl fullWidth error={Boolean(formState.errors.productId)}>
-          <InputLabel id="product-label">Product</InputLabel>
-          {isLoading ? (
-            <Skeleton variant="rectangular" height={56} />
-          ) : (
-            <Controller
-              name="productId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  labelId="product-label"
-                  label="Product"
-                  value={field.value || ''}
-                  onChange={(event) => field.onChange(Number(event.target.value))}
-                >
-                  {products.map((product) => (
-                    <MenuItem value={product.id} key={product.id}>
-                      {product.name} — ${product.basePremium}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-            />
-          )}
-          {formState.errors.productId && (
-            <Typography variant="caption" color="error">
-              {formState.errors.productId.message}
-            </Typography>
-          )}
-        </FormControl>
-      )}
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={8}>
+          <Paper
+            elevation={0}
+            sx={{ p: { xs: 3, md: 4 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}
+          >
+            <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
 
-      {activeStep === 1 && (
-        <Stack spacing={2}>
-          <Controller
-            name="age"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                label="Age"
-                type="number"
-                value={field.value}
-                onChange={(e) => field.onChange(Number(e.target.value))}
-                error={Boolean(formState.errors.age)}
-                helperText={formState.errors.age?.message}
-              />
-            )}
-          />
-          <FormControlLabel
-            control={
-              <Controller
-                name="smoker"
-                control={control}
-                render={({ field }) => (
-                  <Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />
+            {activeStep === 0 && (
+              <FormControl fullWidth error={Boolean(formState.errors.productId)}>
+                <InputLabel id="product-label">Product</InputLabel>
+                {isLoading ? (
+                  <Skeleton variant="rectangular" height={56} />
+                ) : (
+                  <Controller
+                    name="productId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        labelId="product-label"
+                        label="Product"
+                        value={field.value || ''}
+                        onChange={(event) => field.onChange(Number(event.target.value))}
+                      >
+                        {products.map((product) => (
+                          <MenuItem value={product.id} key={product.id}>
+                            {product.name} — ${product.basePremium}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
                 )}
-              />
-            }
-            label="Smoker"
-          />
-          <Controller
-            name="vehicleValue"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                label="Vehicle value"
-                type="number"
-                value={field.value}
-                onChange={(e) => field.onChange(Number(e.target.value))}
-                error={Boolean(formState.errors.vehicleValue)}
-                helperText={formState.errors.vehicleValue?.message}
-              />
+                {formState.errors.productId && (
+                  <Typography variant="caption" color="error">
+                    {formState.errors.productId.message}
+                  </Typography>
+                )}
+              </FormControl>
             )}
-          />
-          <Controller
-            name="tripDuration"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                label="Trip duration (days)"
-                type="number"
-                value={field.value}
-                onChange={(e) => field.onChange(Number(e.target.value))}
-                error={Boolean(formState.errors.tripDuration)}
-                helperText={formState.errors.tripDuration?.message}
-              />
+
+            {activeStep === 1 && (
+              <Stack spacing={2}>
+                <Controller
+                  name="age"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Age"
+                      type="number"
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.age)}
+                      helperText={formState.errors.age?.message}
+                    />
+                  )}
+                />
+                <FormControlLabel
+                  control={
+                    <Controller
+                      name="smoker"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />
+                      )}
+                    />
+                  }
+                  label="Smoker"
+                />
+                <Controller
+                  name="vehicleValue"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Vehicle value"
+                      type="number"
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.vehicleValue)}
+                      helperText={formState.errors.vehicleValue?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="tripDuration"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Trip duration (days)"
+                      type="number"
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.tripDuration)}
+                      helperText={formState.errors.tripDuration?.message}
+                    />
+                  )}
+                />
+              </Stack>
             )}
-          />
-        </Stack>
-      )}
 
-      {activeStep === 2 && (
-        <Box>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Ready to submit your quote request. Provide a JWT token in Authorization header to create live data.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Product: {selectedProduct?.name || 'Not selected'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Age: {watch('age')}, Vehicle Value: {watch('vehicleValue')}
-          </Typography>
-        </Box>
-      )}
+            {activeStep === 2 && (
+              <Box>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  Ready to submit your quote request. Provide a JWT token in Authorization header to create live data.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Product: {selectedProduct?.name || 'Not selected'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Age: {watch('age')}, Vehicle Value: {watch('vehicleValue')}
+                </Typography>
+              </Box>
+            )}
 
-      <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-        <Button onClick={back} disabled={activeStep === 0} variant="outlined">
-          Back
-        </Button>
-        {activeStep < steps.length - 1 && <Button onClick={next}>Next</Button>}
-        {activeStep === steps.length - 1 && (
-          <Button onClick={handleSubmit(onSubmit)} disabled={submitQuoteMutation.isPending}>
-            {submitQuoteMutation.isPending ? 'Submitting...' : 'Submit quote'}
-          </Button>
-        )}
-      </Stack>
+            <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+              <Button onClick={back} disabled={activeStep === 0} variant="outlined">
+                Back
+              </Button>
+              {activeStep < steps.length - 1 && <Button onClick={next}>Next</Button>}
+              {activeStep === steps.length - 1 && (
+                <Button onClick={handleSubmit(onSubmit)} disabled={submitQuoteMutation.isPending}>
+                  {submitQuoteMutation.isPending ? 'Submitting...' : 'Submit quote'}
+                </Button>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 4,
+              border: '1px solid',
+              borderColor: 'divider',
+              height: '100%'
+            }}
+          >
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                Quote checklist
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Keep this info handy to speed up approvals and avoid delays.
+              </Typography>
+              <Box>
+                <Typography variant="subtitle2">Needed details</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Applicant age, vehicle or trip details, and a selected product.
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2">Average response</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  15 minutes for a digital estimate, same-day for confirmation.
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
       <Snackbar open={Boolean(toast)} autoHideDuration={4000} onClose={() => setToast('')}>
         <Alert severity="info">{toast}</Alert>
       </Snackbar>
-    </Paper>
+    </Stack>
   );
 }
