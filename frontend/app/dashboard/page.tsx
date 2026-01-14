@@ -9,6 +9,8 @@ import {
   CardContent,
   CardActions,
   Button,
+  Stack,
+  Chip,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -55,13 +57,34 @@ export default function DashboardPage() {
   const { user } = useAuth();
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
-        Welcome back{user?.name ? `, ${user.name}` : ''}!
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Manage your insurance needs from one place
-      </Typography>
+    <Stack spacing={3}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)'
+        }}
+      >
+        <Stack spacing={1.5}>
+          <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
+            Dashboard
+          </Typography>
+          <Typography variant="h4" fontWeight={700}>
+            Welcome back{user?.name ? `, ${user.name}` : ''}!
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage your insurance needs from one place with quick access to your most important actions.
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip label="Policy renewals this month" variant="outlined" color="primary" />
+            <Chip label="Claims updates ready" variant="outlined" color="primary" />
+          </Stack>
+        </Stack>
+      </Paper>
 
       <Grid container spacing={3}>
         {dashboardCards.map((card) => {
@@ -69,15 +92,19 @@ export default function DashboardPage() {
           return (
             <Grid item xs={12} sm={6} md={3} key={card.title}>
               <Card
+                elevation={0}
                 sx={{
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
+                  borderRadius: 4,
+                  border: '1px solid',
+                  borderColor: 'divider',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: 4,
-                  },
+                    boxShadow: 3
+                  }
                 }}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
@@ -85,7 +112,7 @@ export default function DashboardPage() {
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      mb: 2,
+                      mb: 2
                     }}
                   >
                     <Icon sx={{ fontSize: 40, color: card.color, mr: 2 }} />
@@ -98,11 +125,7 @@ export default function DashboardPage() {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button
-                    size="small"
-                    onClick={() => router.push(card.href)}
-                    fullWidth
-                  >
+                  <Button size="small" onClick={() => router.push(card.href)} fullWidth variant="outlined">
                     View {card.title}
                   </Button>
                 </CardActions>
@@ -111,6 +134,6 @@ export default function DashboardPage() {
           );
         })}
       </Grid>
-    </Box>
+    </Stack>
   );
 }
