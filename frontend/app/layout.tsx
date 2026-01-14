@@ -1,6 +1,7 @@
 import './globals.css';
 import { ThemeRegistry } from '../lib/theme';
 import Layout from '../components/Layout';
+import Providers from './providers';
 import React from 'react';
 
 export const metadata = {
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <ThemeRegistry>
-          <Layout>{children}</Layout>
+          <Providers>
+            <Layout>{children}</Layout>
+          </Providers>
         </ThemeRegistry>
       </body>
     </html>

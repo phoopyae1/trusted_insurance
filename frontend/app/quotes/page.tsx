@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -16,8 +16,15 @@ import {
   InputLabel,
   FormControl,
   Snackbar,
-  Alert
+  Alert,
+  FormControlLabel,
+  Checkbox,
+  Skeleton
 } from '@mui/material';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 const steps = ['Choose product', 'Applicant details', 'Review'];
 
@@ -28,35 +35,76 @@ interface Product {
   basePremium: number;
 }
 
+const quoteSchema = z.object({
+  productId: z.number({ required_error: 'Select a product' }).min(1, 'Select a product'),
+  age: z.number().min(18, 'Minimum age is 18').max(100, 'Maximum age is 100'),
+  smoker: z.boolean(),
+  vehicleValue: z.number().min(0, 'Vehicle value must be positive'),
+  tripDuration: z.number().min(0, 'Trip duration must be positive')
+});
+
+type QuoteFormValues = z.infer<typeof quoteSchema>;
+
 export default function QuotesPage() {
   const [activeStep, setActiveStep] = useState(0);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<number | ''>('');
-  const [metadata, setMetadata] = useState({ age: 30, smoker: false, vehicleValue: 0, tripDuration: 0 });
   const [toast, setToast] = useState('');
 
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`)
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
-  }, []);
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`);
+      return res.json();
+    }
+  });
 
-  const next = () => setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
-  const back = () => setActiveStep((prev) => Math.max(prev - 1, 0));
+  const { control, handleSubmit, trigger, watch, formState } = useForm<QuoteFormValues>({
+    resolver: zodResolver(quoteSchema),
+    defaultValues: {
+      productId: 0,
+      age: 30,
+      smoker: false,
+      vehicleValue: 0,
+      tripDuration: 0
+    }
+  });
 
-  const submitQuote = async () => {
-    try {
+  const submitQuoteMutation = useMutation({
+    mutationFn: async (values: QuoteFormValues) => {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/quotes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer demo-token' },
-        body: JSON.stringify({ productId: selectedProduct, metadata })
+        body: JSON.stringify({
+          productId: values.productId,
+          metadata: {
+            age: values.age,
+            smoker: values.smoker,
+            vehicleValue: values.vehicleValue,
+            tripDuration: values.tripDuration
+          }
+        })
       });
       const data = await res.json();
-      setToast(res.ok ? 'Quote submitted. Provide a valid token to create real quotes.' : data.message || 'Failed');
-    } catch (err) {
-      setToast('Network error');
-    }
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      return data;
+    },
+    onSuccess: () => setToast('Quote submitted. Provide a valid token to create real quotes.'),
+    onError: (error: Error) => setToast(error.message || 'Network error')
+  });
+
+  const next = async () => {
+    const fields = activeStep === 0 ? ['productId'] : ['age', 'vehicleValue', 'tripDuration', 'smoker'];
+    const valid = await trigger(fields as (keyof QuoteFormValues)[]);
+    if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
   };
+  const back = () => setActiveStep((prev) => Math.max(prev - 1, 0));
+
+  const selectedProductId = watch('productId');
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === selectedProductId),
+    [products, selectedProductId]
+  );
+
+  const onSubmit = (values: QuoteFormValues) => submitQuoteMutation.mutate(values);
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -70,43 +118,95 @@ export default function QuotesPage() {
           </Step>
         ))}
       </Stepper>
+
       {activeStep === 0 && (
-        <FormControl fullWidth>
+        <FormControl fullWidth error={Boolean(formState.errors.productId)}>
           <InputLabel id="product-label">Product</InputLabel>
-          <Select
-            labelId="product-label"
-            label="Product"
-            value={selectedProduct}
-            onChange={(e) => setSelectedProduct(Number(e.target.value))}
-          >
-            {products.map((product) => (
-              <MenuItem value={product.id} key={product.id}>
-                {product.name} — ${product.basePremium}
-              </MenuItem>
-            ))}
-          </Select>
+          {isLoading ? (
+            <Skeleton variant="rectangular" height={56} />
+          ) : (
+            <Controller
+              name="productId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  labelId="product-label"
+                  label="Product"
+                  value={field.value || ''}
+                  onChange={(event) => field.onChange(Number(event.target.value))}
+                >
+                  {products.map((product) => (
+                    <MenuItem value={product.id} key={product.id}>
+                      {product.name} — ${product.basePremium}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
+          )}
+          {formState.errors.productId && (
+            <Typography variant="caption" color="error">
+              {formState.errors.productId.message}
+            </Typography>
+          )}
         </FormControl>
       )}
 
       {activeStep === 1 && (
         <Stack spacing={2}>
-          <TextField
-            label="Age"
-            type="number"
-            value={metadata.age}
-            onChange={(e) => setMetadata({ ...metadata, age: Number(e.target.value) })}
+          <Controller
+            name="age"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Age"
+                type="number"
+                value={field.value}
+                onChange={(e) => field.onChange(Number(e.target.value))}
+                error={Boolean(formState.errors.age)}
+                helperText={formState.errors.age?.message}
+              />
+            )}
           />
-          <TextField
-            label="Vehicle value"
-            type="number"
-            value={metadata.vehicleValue}
-            onChange={(e) => setMetadata({ ...metadata, vehicleValue: Number(e.target.value) })}
+          <FormControlLabel
+            control={
+              <Controller
+                name="smoker"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />
+                )}
+              />
+            }
+            label="Smoker"
           />
-          <TextField
-            label="Trip duration (days)"
-            type="number"
-            value={metadata.tripDuration}
-            onChange={(e) => setMetadata({ ...metadata, tripDuration: Number(e.target.value) })}
+          <Controller
+            name="vehicleValue"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Vehicle value"
+                type="number"
+                value={field.value}
+                onChange={(e) => field.onChange(Number(e.target.value))}
+                error={Boolean(formState.errors.vehicleValue)}
+                helperText={formState.errors.vehicleValue?.message}
+              />
+            )}
+          />
+          <Controller
+            name="tripDuration"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Trip duration (days)"
+                type="number"
+                value={field.value}
+                onChange={(e) => field.onChange(Number(e.target.value))}
+                error={Boolean(formState.errors.tripDuration)}
+                helperText={formState.errors.tripDuration?.message}
+              />
+            )}
           />
         </Stack>
       )}
@@ -117,10 +217,10 @@ export default function QuotesPage() {
             Ready to submit your quote request. Provide a JWT token in Authorization header to create live data.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Product ID: {selectedProduct || 'Not selected'}
+            Product: {selectedProduct?.name || 'Not selected'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Age: {metadata.age}, Vehicle Value: {metadata.vehicleValue}
+            Age: {watch('age')}, Vehicle Value: {watch('vehicleValue')}
           </Typography>
         </Box>
       )}
@@ -130,7 +230,11 @@ export default function QuotesPage() {
           Back
         </Button>
         {activeStep < steps.length - 1 && <Button onClick={next}>Next</Button>}
-        {activeStep === steps.length - 1 && <Button onClick={submitQuote}>Submit quote</Button>}
+        {activeStep === steps.length - 1 && (
+          <Button onClick={handleSubmit(onSubmit)} disabled={submitQuoteMutation.isPending}>
+            {submitQuoteMutation.isPending ? 'Submitting...' : 'Submit quote'}
+          </Button>
+        )}
       </Stack>
       <Snackbar open={Boolean(toast)} autoHideDuration={4000} onClose={() => setToast('')}>
         <Alert severity="info">{toast}</Alert>
