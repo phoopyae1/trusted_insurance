@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - "3000:3000"
