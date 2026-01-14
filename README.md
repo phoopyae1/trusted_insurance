@@ -5,8 +5,8 @@ Full-stack insurance demo with a Next.js frontend and Express/Prisma backend for
 ## Project structure
 
 ```
-apps/web   # Next.js 14 App Router + MUI UI
-apps/api   # Express REST API with PostgreSQL + Prisma
+frontend   # Next.js 14 App Router + MUI UI
+backend    # Express REST API with PostgreSQL + Prisma
 packages/shared # Shared types/enums
 ```
 
@@ -21,8 +21,8 @@ See [`docs/solution.md`](docs/solution.md) for the MVP deliverables (schema, end
 Copy the provided examples and update as needed.
 
 ```
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
 ### Database via Docker
@@ -37,7 +37,7 @@ docker run --name trusted-insurance-db -e POSTGRES_PASSWORD=postgres -e POSTGRES
 ## Backend setup
 
 ```
-cd apps/api
+cd backend
 npm install
 npm run prisma:generate
 npm run prisma:migrate -- --name init
@@ -50,7 +50,7 @@ APIs will be available at `http://localhost:4000`. Swagger docs live at `/api/do
 ## Frontend setup
 
 ```
-cd apps/web
+cd frontend
 npm install
 npm run dev
 ```
