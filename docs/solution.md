@@ -2,9 +2,8 @@
 
 ## Monorepo layout
 ```
-apps/
-  web/    # Next.js App Router UI (MUI, React Hook Form, Zod, TanStack Query)
-  api/    # Express API + Prisma/PostgreSQL
+frontend/ # Next.js App Router UI (MUI, React Hook Form, Zod, TanStack Query)
+backend/  # Express API + Prisma/PostgreSQL
 packages/
   shared/ # Shared enums/types for roles and audit events
 ```
@@ -23,7 +22,7 @@ packages/
 - **RefreshToken / PasswordReset**: auth flows for refresh + password reset.
 
 ### Migration plan
-1. Update `apps/api/prisma/schema.prisma` with new models/enums.
+1. Update `backend/prisma/schema.prisma` with new models/enums.
 2. Run `npm run prisma:generate` to update the client.
 3. Run `npm run prisma:migrate -- --name init` to create migrations.
 4. Run `npm run prisma:seed` to load demo users, policies, claims, payments, and audit logs.
@@ -187,6 +186,6 @@ packages/
 
 ## Component structure (UI)
 - **Layout**: `components/Layout.tsx` for sidebar + topbar navigation.
-- **Feature pages**: app router pages under `apps/web/app/*`.
+- **Feature pages**: app router pages under `frontend/app/*`.
 - **Forms**: React Hook Form + Zod schemas for validation.
 - **Data**: TanStack Query hooks (to be expanded) for optimistic updates and caching.
