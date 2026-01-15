@@ -59,7 +59,7 @@ export default function HomePage() {
           p: { xs: 4, md: 6 },
           borderRadius: 6,
           background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.18), transparent 45%)',
+            'radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 52%), radial-gradient(circle at top right, rgba(15, 185, 177, 0.2), transparent 45%), linear-gradient(135deg, rgba(10, 37, 64, 0.06), rgba(15, 185, 177, 0.08))',
           border: '1px solid rgba(15, 23, 42, 0.08)'
         }}
       >
@@ -67,27 +67,30 @@ export default function HomePage() {
           <Grid item xs={12} md={7}>
             <Stack spacing={3}>
               <Stack spacing={1}>
-                <Typography variant="overline" sx={{ letterSpacing: 3, color: 'primary.main' }}>
-                  TrustWave Insurance
-                </Typography>
-                <Typography variant="h2" fontWeight={700} sx={{ lineHeight: 1 }}>
-                  Insurance Company
+                <Chip
+                  label="Modern Tech Insurance"
+                  color="secondary"
+                  variant="outlined"
+                  sx={{ alignSelf: 'flex-start', fontWeight: 600 }}
+                />
+                <Typography variant="h2" fontWeight={700} sx={{ lineHeight: 1.1 }}>
+                  Insurance built for fast digital teams.
                 </Typography>
                 <Typography variant="subtitle1" sx={{ maxWidth: 560, color: 'text.secondary' }}>
-                  Your peace of mind is our priority. Our plans are designed with your unique needs in mind.
-                  Experience a calmer, premium coverage journey across auto, health, and home.
+                  Launch policies, quotes, and claims workflows from a modern platform that keeps customers informed
+                  at every step.
                 </Typography>
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Button component={Link} href="/quotes" variant="contained" size="large">
-                  Consultation
+                  Start a quote
                 </Button>
                 <Button component={Link} href="/products" variant="outlined" size="large">
-                  View products
+                  Explore products
                 </Button>
               </Stack>
-              <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap">
-                <Chip label="24/7 digital policy access" color="primary" variant="outlined" />
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                <Chip label="24/7 digital policy access" color="info" variant="outlined" />
                 <Typography variant="body2" color="text.secondary">
                   +380 (68) 293 38 38
                 </Typography>
@@ -106,7 +109,7 @@ export default function HomePage() {
                     border: '1px solid',
                     borderColor: 'divider',
                     background:
-                      'linear-gradient(135deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.08))'
+                      'linear-gradient(135deg, rgba(10, 37, 64, 0.04), rgba(56, 189, 248, 0.08))'
                   }}
                 >
                   <Stack direction="row" spacing={2} alignItems="flex-start">
