@@ -8,7 +8,7 @@ import {
   IconButton,
   Drawer,
   List,
-  ListItem,
+  ListItemButton,
   ListItemText,
   Box,
   Divider,
@@ -16,13 +16,13 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Stack,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import AccountCircle from '@mui/icons-material/AccountCircle';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useColorMode } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,7 +37,6 @@ const navLinks = [
 export default function Layout({ children }: { children: ReactNode }) {
   const { mode, toggle } = useColorMode();
   const { user, logout, isAuthenticated } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -57,13 +56,13 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
-      <AppBar position="fixed" color="primary" elevation={2}>
-        <Toolbar>
+      <AppBar position="fixed" color="transparent" elevation={0}>
+        <Toolbar sx={{ py: 1 }}>
           <IconButton
             color="inherit"
             edge="start"
             onClick={() => setOpen(true)}
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, color: 'common.white' }}
             aria-label="menu"
           >
             <MenuIcon />
@@ -72,109 +71,128 @@ export default function Layout({ children }: { children: ReactNode }) {
             variant="h6"
             component={Link}
             href="/"
-            sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
+            sx={{ flexGrow: 1, textDecoration: 'none', color: 'common.white', fontWeight: 700 }}
           >
             Trusted Insurance
           </Typography>
-          <IconButton color="inherit" onClick={toggle} aria-label="toggle theme">
-            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
-          {isAuthenticated ? (
-            <>
-              <IconButton
-                size="large"
-                aria-label="account menu"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleMenu}
-                color="inherit"
-              >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                  {user?.name?.charAt(0).toUpperCase()}
-                </Avatar>
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-              >
-                <MenuItem disabled>
-                  <Typography variant="body2">{user?.email}</Typography>
-                </MenuItem>
-                <Divider />
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </Menu>
-            </>
-          ) : (
-            <Button color="inherit" component={Link} href="/login">
-              Login
-            </Button>
-          )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <IconButton
+              color="inherit"
+              onClick={toggle}
+              aria-label="toggle theme"
+              sx={{ color: 'common.white' }}
+            >
+              {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+            </IconButton>
+            {isAuthenticated ? (
+              <>
+                <IconButton
+                  size="large"
+                  aria-label="account menu"
+                  aria-controls="menu-appbar"
+                  aria-haspopup="true"
+                  onClick={handleMenu}
+                  sx={{ color: 'common.white' }}
+                >
+                  <Avatar sx={{ width: 34, height: 34, bgcolor: 'info.main', color: 'primary.main' }}>
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  id="menu-appbar"
+                  anchorEl={anchorEl}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  open={Boolean(anchorEl)}
+                  onClose={handleClose}
+                >
+                  <MenuItem disabled>
+                    <Typography variant="body2">{user?.email}</Typography>
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Button color="inherit" component={Link} href="/login" sx={{ color: 'common.white' }}>
+                Login
+              </Button>
+            )}
+          </Stack>
         </Toolbar>
       </AppBar>
       <Drawer anchor="left" open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 250 }} role="presentation">
-          <Typography variant="h6" sx={{ p: 2 }}>
-            Navigation
-          </Typography>
-          <Divider />
-          <List>
+        <Box sx={{ width: 280, p: 2 }} role="presentation">
+          <Stack spacing={0.5} sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Navigation
+            </Typography>
+            <Typography variant="h6" fontWeight={700} color="text.primary">
+              IMS Workspace
+            </Typography>
+          </Stack>
+          <Divider sx={{ mb: 2 }} />
+          <List sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {navLinks.map((link) => (
-              <ListItem
+              <ListItemButton
                 key={link.href}
                 component={Link}
                 href={link.href}
                 onClick={() => setOpen(false)}
+                selected={pathname === link.href}
                 sx={{
-                  backgroundColor: pathname === link.href ? 'action.selected' : 'transparent',
+                  borderRadius: 2.5,
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(15, 185, 177, 0.12)',
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'rgba(15, 185, 177, 0.2)',
+                    },
+                  },
                 }}
               >
                 <ListItemText primary={link.label} />
-              </ListItem>
+              </ListItemButton>
             ))}
           </List>
           {user?.role === 'ADMIN' && (
             <>
-              <Divider />
+              <Divider sx={{ my: 2 }} />
               <List>
-                <ListItem
-                  component={Link}
-                  href="/admin"
-                  onClick={() => setOpen(false)}
-                >
+                <ListItemButton component={Link} href="/admin" onClick={() => setOpen(false)}>
                   <ListItemText primary="Admin Panel" />
-                </ListItem>
+                </ListItemButton>
               </List>
             </>
           )}
           {(user?.role === 'AGENT' || user?.role === 'UNDERWRITER' || user?.role === 'CLAIMS_OFFICER') && (
             <>
-              <Divider />
+              <Divider sx={{ my: 2 }} />
               <List>
-                <ListItem
-                  component={Link}
-                  href="/staff"
-                  onClick={() => setOpen(false)}
-                >
+                <ListItemButton component={Link} href="/staff" onClick={() => setOpen(false)}>
                   <ListItemText primary="Staff Panel" />
-                </ListItem>
+                </ListItemButton>
               </List>
             </>
           )}
         </Box>
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
-        {children}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, md: 4 },
+          mt: { xs: 10, md: 12 },
+        }}
+      >
+        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>{children}</Box>
       </Box>
     </Box>
   );
