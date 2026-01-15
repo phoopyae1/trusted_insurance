@@ -129,59 +129,62 @@ export default function Layout({ children }: { children: ReactNode }) {
         </Toolbar>
       </AppBar>
       <Drawer anchor="left" open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 280, p: 2 }} role="presentation">
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary">
+        <Box sx={{ width: 280, display: 'flex', flexDirection: 'column', height: '100%' }} role="presentation">
+          <Box sx={{ p: 3, backgroundColor: 'primary.main', color: 'common.white' }}>
+            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
               Navigation
             </Typography>
-            <Typography variant="h6" fontWeight={700} color="text.primary">
+            <Typography variant="h6" fontWeight={700}>
               IMS Workspace
             </Typography>
-          </Stack>
-          <Divider sx={{ mb: 2 }} />
-          <List sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {navLinks.map((link) => (
-              <ListItemButton
-                key={link.href}
-                component={Link}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                selected={pathname === link.href}
-                sx={{
-                  borderRadius: 2.5,
-                  '&.Mui-selected': {
-                    backgroundColor: 'rgba(15, 185, 177, 0.12)',
-                    color: 'primary.main',
-                    '&:hover': {
-                      backgroundColor: 'rgba(15, 185, 177, 0.2)',
+          </Box>
+          <Box sx={{ px: 2, py: 2, flex: 1 }}>
+            <List sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              {navLinks.map((link) => (
+                <ListItemButton
+                  key={link.href}
+                  component={Link}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  selected={pathname === link.href}
+                  sx={{
+                    borderRadius: 1,
+                    '&.Mui-selected': {
+                      backgroundColor: 'rgba(15, 185, 177, 0.12)',
+                      borderLeft: '3px solid',
+                      borderLeftColor: 'secondary.main',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'rgba(15, 185, 177, 0.2)',
+                      },
                     },
-                  },
-                }}
-              >
-                <ListItemText primary={link.label} />
-              </ListItemButton>
-            ))}
-          </List>
-          {user?.role === 'ADMIN' && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <List>
-                <ListItemButton component={Link} href="/admin" onClick={() => setOpen(false)}>
-                  <ListItemText primary="Admin Panel" />
+                  }}
+                >
+                  <ListItemText primary={link.label} />
                 </ListItemButton>
-              </List>
-            </>
-          )}
-          {(user?.role === 'AGENT' || user?.role === 'UNDERWRITER' || user?.role === 'CLAIMS_OFFICER') && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <List>
-                <ListItemButton component={Link} href="/staff" onClick={() => setOpen(false)}>
-                  <ListItemText primary="Staff Panel" />
-                </ListItemButton>
-              </List>
-            </>
-          )}
+              ))}
+            </List>
+            {user?.role === 'ADMIN' && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <List>
+                  <ListItemButton component={Link} href="/admin" onClick={() => setOpen(false)}>
+                    <ListItemText primary="Admin Panel" />
+                  </ListItemButton>
+                </List>
+              </>
+            )}
+            {(user?.role === 'AGENT' || user?.role === 'UNDERWRITER' || user?.role === 'CLAIMS_OFFICER') && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <List>
+                  <ListItemButton component={Link} href="/staff" onClick={() => setOpen(false)}>
+                    <ListItemText primary="Staff Panel" />
+                  </ListItemButton>
+                </List>
+              </>
+            )}
+          </Box>
         </Box>
       </Drawer>
       <Box

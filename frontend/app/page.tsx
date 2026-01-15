@@ -57,7 +57,7 @@ export default function HomePage() {
         elevation={0}
         sx={{
           p: { xs: 4, md: 6 },
-          borderRadius: 6,
+          borderRadius: 4,
           background:
             'radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 52%), radial-gradient(circle at top right, rgba(15, 185, 177, 0.2), transparent 45%), linear-gradient(135deg, rgba(10, 37, 64, 0.06), rgba(15, 185, 177, 0.08))',
           border: '1px solid rgba(15, 23, 42, 0.08)'
@@ -105,7 +105,7 @@ export default function HomePage() {
                   elevation={0}
                   sx={{
                     p: 2.5,
-                    borderRadius: 4,
+                    borderRadius: 2,
                     border: '1px solid',
                     borderColor: 'divider',
                     background:
@@ -150,7 +150,7 @@ export default function HomePage() {
                 elevation={0}
                 sx={{
                   p: 3,
-                  borderRadius: 4,
+                  borderRadius: 2,
                   border: '1px solid',
                   borderColor: 'divider'
                 }}
@@ -181,7 +181,7 @@ export default function HomePage() {
                 elevation={0}
                 sx={{
                   p: 3,
-                  borderRadius: 4,
+                  borderRadius: 2,
                   border: '1px solid',
                   borderColor: 'divider',
                   height: '100%'
