@@ -45,7 +45,7 @@ export default function ProductsPage() {
         elevation={0}
         sx={{
           p: { xs: 3, md: 4 },
-          borderRadius: 4,
+          borderRadius: 0,
           border: '1px solid',
           borderColor: 'divider',
           background:
@@ -73,7 +73,7 @@ export default function ProductsPage() {
 
       <Paper
         elevation={0}
-        sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}
+        sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}
       >
         <Typography variant="h6" gutterBottom>
           Available plans

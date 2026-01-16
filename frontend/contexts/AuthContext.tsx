@@ -27,11 +27,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (token && storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        // Verify token is not expired (basic check)
+        const user = JSON.parse(storedUser);
+        setUser(user);
+        
+        // Optionally verify token is still valid by making a test request
+        // For now, just set the user if token exists
       } catch (e) {
+        console.error('Error parsing stored user:', e);
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
       }
+    } else {
+      // No token or user, ensure clean state
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
     }
     setLoading(false);
   }, []);

@@ -47,7 +47,7 @@ export function ThemeRegistry({ children }: { children: ReactNode }) {
               : { primary: '#F9FAFB', secondary: '#9CA3AF' },
         },
         shape: {
-          borderRadius: 6,
+          borderRadius: 0,
         },
         typography: {
           fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -65,7 +65,7 @@ export function ThemeRegistry({ children }: { children: ReactNode }) {
             },
             styleOverrides: {
               root: {
-                borderRadius: 6,
+                borderRadius: 0,
                 paddingLeft: 20,
                 paddingRight: 20,
               },
@@ -77,7 +77,7 @@ export function ThemeRegistry({ children }: { children: ReactNode }) {
           MuiPaper: {
             styleOverrides: {
               root: {
-                borderRadius: 8,
+                borderRadius: 0,
                 border: '1px solid rgba(148, 163, 184, 0.2)',
               },
             },
@@ -101,7 +101,7 @@ export function ThemeRegistry({ children }: { children: ReactNode }) {
           MuiChip: {
             styleOverrides: {
               root: {
-                borderRadius: 6,
+                borderRadius: 0,
               },
             },
           },

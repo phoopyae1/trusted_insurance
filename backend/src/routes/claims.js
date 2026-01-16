@@ -2,6 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const prisma = require('../prisma');
 const { authenticate, authorize } = require('../middleware/auth');
+const asyncHandler = require('../middleware/asyncHandler');
+const { NotFoundError, ValidationError } = require('../utils/errors');
+const { validateRequired, validateNumber } = require('../utils/validation');
 const { validateClaim } = require('../services/claimValidationService');
 const { logAudit } = require('../services/auditLogService');
 const upload = multer({ storage: multer.memoryStorage() });
@@ -9,11 +12,19 @@ const router = express.Router();
 
 const STAFF_ROLES = ['ADMIN', 'AGENT', 'UNDERWRITER', 'CLAIMS_OFFICER'];
 
-router.get('/', authenticate, async (req, res) => {
-  const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
-  const claims = await prisma.claim.findMany({ where, include: { policy: true } });
-  res.json(claims);
-});
+router.get(
+  '/',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
+    const claims = await prisma.claim.findMany({
+      where,
+      include: { policy: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: claims, count: claims.length });
+  })
+);
 
 router.get('/:id', authenticate, async (req, res) => {
   const claim = await prisma.claim.findUnique({ where: { id: Number(req.params.id) }, include: { policy: true } });
@@ -24,16 +35,36 @@ router.get('/:id', authenticate, async (req, res) => {
   res.json(claim);
 });
 
-router.post('/', authenticate, authorize(['CUSTOMER', 'ADMIN', 'AGENT']), upload.array('attachments'), async (req, res) => {
-  try {
+router.post(
+  '/',
+  authenticate,
+  authorize(['CUSTOMER', 'ADMIN', 'AGENT']),
+  upload.array('attachments'),
+  asyncHandler(async (req, res) => {
+    validateRequired(req.body, ['policyId', 'claimType', 'amount', 'incidentDate', 'description']);
     const { policyId, claimType, amount, incidentDate, description } = req.body;
-    const policy = await prisma.policy.findUnique({ where: { id: Number(policyId) }, include: { product: true } });
-    if (!policy) return res.status(404).json({ message: 'Policy not found' });
+    
+    const policy = await prisma.policy.findUnique({
+      where: { id: validateNumber(policyId, 'Policy ID') },
+      include: { product: true },
+    });
+    if (!policy) throw new NotFoundError('Policy');
 
-    const errors = validateClaim(policy, policy.product, { claimType, amount: Number(amount), incidentDate, description });
-    if (errors.length) return res.status(400).json({ message: 'Validation failed', errors });
+    const errors = validateClaim(policy, policy.product, {
+      claimType,
+      amount: validateNumber(amount, 'Amount'),
+      incidentDate,
+      description,
+    });
+    if (errors.length) {
+      throw new ValidationError('Claim validation failed', errors);
+    }
 
-    const attachments = (req.files || []).map((file) => ({ filename: file.originalname, mimetype: file.mimetype }));
+    const attachments = (req.files || []).map((file) => ({
+      filename: file.originalname,
+      mimetype: file.mimetype,
+    }));
+
     const claim = await prisma.claim.create({
       data: {
         policyId: policy.id,
@@ -42,8 +73,8 @@ router.post('/', authenticate, authorize(['CUSTOMER', 'ADMIN', 'AGENT']), upload
         amount: Number(amount),
         incidentDate: new Date(incidentDate),
         description,
-        attachments
-      }
+        attachments,
+      },
     });
 
     await logAudit({
@@ -51,15 +82,12 @@ router.post('/', authenticate, authorize(['CUSTOMER', 'ADMIN', 'AGENT']), upload
       action: 'CLAIM_SUBMITTED',
       entityType: 'Claim',
       entityId: claim.id,
-      metadata: { amount: claim.amount }
+      metadata: { amount: claim.amount },
     });
 
-    res.status(201).json(claim);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: 'Failed to submit claim' });
-  }
-});
+    res.status(201).json({ success: true, data: claim });
+  })
+);
 
 router.patch('/:id/status', authenticate, authorize(['CLAIMS_OFFICER', 'ADMIN']), async (req, res) => {
   try {

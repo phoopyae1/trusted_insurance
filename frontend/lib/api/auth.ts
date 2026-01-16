@@ -15,7 +15,15 @@ export interface AuthResponse {
 
 export const authApi = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>('/api/auth/login', { email, password });
+    const response = await apiClient.post<any>('/api/auth/login', { email, password });
+    // Handle both response formats: direct object or wrapped in { data: ... }
+    if (response.token) {
+      return response;
+    }
+    if (response.data && response.data.token) {
+      return response.data;
+    }
+    throw new Error('Invalid login response format');
   },
 
   register: async (
@@ -23,11 +31,19 @@ export const authApi = {
     password: string,
     name: string
   ): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>('/api/auth/register', {
+    const response = await apiClient.post<any>('/api/auth/register', {
       email,
       password,
       name,
     });
+    // Handle both response formats: direct object or wrapped in { data: ... }
+    if (response.token) {
+      return response;
+    }
+    if (response.data && response.data.token) {
+      return response.data;
+    }
+    throw new Error('Invalid register response format');
   },
 
   logout: async (refreshToken: string): Promise<void> => {

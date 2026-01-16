@@ -62,7 +62,7 @@ export default function DashboardPage() {
         elevation={0}
         sx={{
           p: { xs: 3, md: 4 },
-          borderRadius: 4,
+          borderRadius: 0,
           border: '1px solid',
           borderColor: 'divider',
           background:
@@ -97,7 +97,7 @@ export default function DashboardPage() {
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
-                  borderRadius: 4,
+                  borderRadius: 0,
                   border: '1px solid',
                   borderColor: 'divider',
                   transition: 'transform 0.2s, box-shadow 0.2s',
