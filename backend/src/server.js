@@ -4,6 +4,15 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
 
+let connectMongoDB;
+try {
+  const mongoConfig = require('./config/mongodb');
+  connectMongoDB = mongoConfig.connectMongoDB;
+} catch (error) {
+  console.warn('⚠️ MongoDB configuration not available');
+  connectMongoDB = async () => {};
+}
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
@@ -14,6 +23,7 @@ const claimRoutes = require('./routes/claims');
 const paymentRoutes = require('./routes/payments');
 const invoiceRoutes = require('./routes/invoices');
 const auditLogRoutes = require('./routes/auditLogs');
+const integrationRoutes = require('./routes/integrations');
 
 const errorHandler = require('./middleware/errorHandler');
 
@@ -56,6 +66,7 @@ app.use('/api/claims', claimRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
@@ -70,6 +81,14 @@ app.use((req, res) => {
     }
   });
 });
+
+// Initialize MongoDB connection (optional)
+if (connectMongoDB) {
+  connectMongoDB().catch((error) => {
+    console.warn('⚠️ MongoDB connection failed:', error.message);
+    console.warn('   Integration features will be unavailable until MongoDB is configured.');
+  });
+}
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

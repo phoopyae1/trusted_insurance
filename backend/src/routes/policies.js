@@ -13,7 +13,7 @@ router.get(
   '/',
   authenticate,
   asyncHandler(async (req, res) => {
-    const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
+  const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
     const policies = await prisma.policy.findMany({
       where,
       include: { product: true, quote: true },
@@ -165,7 +165,7 @@ router.post(
       });
 
       createdPolicies.push(policy);
-    }
+  }
 
     res.json({
       success: true,

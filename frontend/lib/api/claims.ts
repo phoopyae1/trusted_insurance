@@ -10,7 +10,34 @@ export interface Claim {
   description: string;
   status: string;
   attachments?: any;
+  eligibleAmount?: number;
+  deductible?: number;
+  approvedAmount?: number;
+  decisionReason?: string;
+  assessedAt?: string;
+  assessedBy?: number;
+  paidAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  policy?: {
+    id: number;
+    policyNumber: string;
+    product?: {
+      id: number;
+      name: string;
+      type: string;
+    };
+  };
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  assessedByUser?: {
+    id: number;
+    name: string;
+    email: string;
+  };
 }
 
 export interface CreateClaimData {
@@ -44,7 +71,8 @@ export const claimsApi = {
   },
 
   getById: async (id: number): Promise<Claim> => {
-    return apiClient.get<Claim>(`/api/claims/${id}`);
+    const response = await apiClient.get<any>(`/api/claims/${id}`);
+    return response?.data || response;
   },
 
   create: async (claimData: CreateClaimData): Promise<Claim> => {
@@ -54,5 +82,29 @@ export const claimsApi = {
       return response.data;
     }
     return response;
+  },
+
+  assess: async (id: number): Promise<Claim> => {
+    const response = await apiClient.patch<any>(`/api/claims/${id}/assess`, {});
+    return response?.data || response;
+  },
+
+  makeDecision: async (
+    id: number,
+    decision: {
+      status: 'APPROVED' | 'PARTIALLY_APPROVED' | 'REJECTED';
+      decisionReason: string;
+      eligibleAmount?: number;
+      deductible?: number;
+      approvedAmount?: number;
+    }
+  ): Promise<Claim> => {
+    const response = await apiClient.patch<any>(`/api/claims/${id}/decision`, decision);
+    return response?.data || response;
+  },
+
+  processPayment: async (id: number): Promise<Claim> => {
+    const response = await apiClient.patch<any>(`/api/claims/${id}/pay`, {});
+    return response?.data || response;
   },
 };

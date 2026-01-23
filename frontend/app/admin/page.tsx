@@ -1,70 +1,115 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, TextField, Typography, Grid, Card, CardContent } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-
-interface Product {
-  id: number;
-  name: string;
-  type: string;
-  basePremium: number;
-}
+import { useQuery } from '@tanstack/react-query';
+import { productsApi, Product } from '../../lib/api/products';
 
 const columns: GridColDef<Product>[] = [
   { field: 'id', headerName: 'ID', width: 80 },
   { field: 'name', headerName: 'Name', flex: 1 },
   { field: 'type', headerName: 'Type', flex: 1 },
-  { field: 'basePremium', headerName: 'Premium', flex: 1 }
+  {
+    field: 'basePremium',
+    headerName: 'Premium',
+    flex: 1,
+    valueFormatter: ({ value }) => `$${Number(value)?.toFixed(2) || 0}`,
+  },
+  { field: 'description', headerName: 'Description', flex: 2 },
 ];
 
 export default function AdminPage() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [form, setForm] = useState({ name: '', type: 'HEALTH', basePremium: '', description: '' });
 
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`)
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
-  }, []);
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: () => productsApi.getAll(),
+  });
 
   const createProduct = async () => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer admin-token' },
-      body: JSON.stringify({ ...form, basePremium: Number(form.basePremium), exclusions: [] })
-    });
-    if (res.ok) {
-      const item = await res.json();
-      setProducts((prev) => [...prev, item]);
-    }
+    // This would need proper API integration with authentication
+    console.log('Create product:', { ...form, basePremium: Number(form.basePremium), exclusions: [] });
   };
 
   return (
-    <Box>
-      <Typography variant="h5" gutterBottom>
-        Admin product management
+    <Stack spacing={3}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: 0,
+          border: '1px solid',
+          borderColor: 'divider',
+          background:
+            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
+        }}
+      >
+        <Stack spacing={1.5}>
+          <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
+            Admin Panel
+          </Typography>
+          <Typography variant="h4" fontWeight={700}>
+            Product Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Create and manage insurance products for your platform.
+          </Typography>
+        </Stack>
+      </Paper>
+
+      <Paper elevation={0} sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+          Create New Product
       </Typography>
-      <Paper sx={{ p: 3, mb: 3 }}>
         <Stack spacing={2} direction={{ xs: 'column', sm: 'row' }}>
-          <TextField label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <TextField label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
+          <TextField
+            label="Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            fullWidth
+          />
+          <TextField
+            label="Type"
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value })}
+            fullWidth
+          />
           <TextField
             label="Base premium"
             value={form.basePremium}
             onChange={(e) => setForm({ ...form, basePremium: e.target.value })}
+            type="number"
+            fullWidth
           />
-          <Button onClick={createProduct}>Create</Button>
+          <Button onClick={createProduct} variant="contained" sx={{ borderRadius: 0, textTransform: 'none' }}>
+            Create
+          </Button>
         </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Uses admin JWT token. Update with a valid token to persist changes.
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Note: Product creation requires proper authentication and API integration.
         </Typography>
       </Paper>
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ height: 360 }}>
-          <DataGrid rows={products} columns={columns} disableRowSelectionOnClick />
+
+      <Paper elevation={0} sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h6" fontWeight={600} gutterBottom>
+          All Products
+        </Typography>
+        <Box sx={{ height: 400, width: '100%', mt: 2 }}>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+              <Typography>Loading products...</Typography>
+            </Box>
+          ) : (
+            <DataGrid
+              rows={products}
+              columns={columns}
+              disableRowSelectionOnClick
+              pageSizeOptions={[10, 25, 50]}
+            />
+          )}
         </Box>
       </Paper>
-    </Box>
+    </Stack>
   );
 }

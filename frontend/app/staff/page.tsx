@@ -22,8 +22,8 @@ import {
   TextField,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
 } from '@mui/material';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quotesApi, Quote } from '../../lib/api/quotes';
 import { useAuth } from '../../contexts/AuthContext';
@@ -156,106 +156,6 @@ export default function StaffPage() {
     }
   };
 
-  const columns: GridColDef<Quote>[] = [
-    { field: 'id', headerName: 'ID', width: 80 },
-    {
-      field: 'product',
-      headerName: 'Product',
-      flex: 1,
-      valueGetter: (params) => params.row?.product?.name || 'N/A',
-    },
-    {
-      field: 'user',
-      headerName: 'Customer',
-      flex: 1,
-      valueGetter: (params) => params.row?.user?.name || params.row?.user?.email || 'N/A',
-    },
-    {
-      field: 'premium',
-      headerName: 'Premium',
-      width: 120,
-      renderCell: (params) => {
-        const value = params.value;
-        if (value == null || value === undefined) return <Typography variant="body2">$0.00</Typography>;
-        const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-        const formatted = isNaN(numValue) ? '$0.00' : `$${numValue.toFixed(2)}`;
-        return <Typography variant="body2">{formatted}</Typography>;
-      },
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 120,
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          color={getStatusColor(params.value) as any}
-          size="small"
-        />
-      ),
-    },
-    {
-      field: 'createdAt',
-      headerName: 'Created',
-      width: 150,
-      renderCell: (params) => {
-        const value = params.value;
-        if (!value) return <Typography variant="body2">N/A</Typography>;
-        return <Typography variant="body2">{new Date(value).toLocaleDateString()}</Typography>;
-      },
-    },
-    {
-      field: 'actions',
-      type: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      getActions: (params) => {
-        const quote = params.row as Quote;
-        const actions = [
-          <GridActionsCellItem
-            key="view"
-            icon={<VisibilityIcon />}
-            label="View Details"
-            onClick={() => handleViewDetails(quote)}
-          />,
-        ];
-
-        if (isUnderwriter && quote.status === 'PENDING') {
-          actions.push(
-            <GridActionsCellItem
-              key="approve"
-              icon={<CheckCircleIcon />}
-              label="Approve"
-              onClick={() => handleApprove(quote)}
-              showInMenu
-            />,
-            <GridActionsCellItem
-              key="reject"
-              icon={<CancelIcon />}
-              label="Reject"
-              onClick={() => handleReject(quote)}
-              showInMenu
-            />
-          );
-        }
-
-        // Add "Create Policy" action for approved quotes without policies
-        if (isUnderwriter && quote.status === 'APPROVED' && !quote.policy) {
-          actions.push(
-            <GridActionsCellItem
-              key="create-policy"
-              icon={<AddCardIcon />}
-              label="Create Policy"
-              onClick={() => handleCreatePolicy(quote)}
-              showInMenu
-            />
-          );
-        }
-
-        return actions;
-      },
-    },
-  ];
 
   const filteredQuotes = quotes.filter((quote) => {
     if (activeTab === 'quotes') return true;
@@ -272,16 +172,23 @@ export default function StaffPage() {
           borderRadius: 0,
           border: '1px solid',
           borderColor: 'divider',
+          background:
+            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
         }}
       >
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Staff Dashboard
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {isUnderwriter
-            ? 'Review and approve quotes, manage policies'
-            : 'Manage quotes and claims'}
-        </Typography>
+        <Stack spacing={1.5}>
+          <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
+            Staff Management
+          </Typography>
+          <Typography variant="h4" fontWeight={700}>
+            {isUnderwriter ? 'Underwriter Dashboard' : 'Staff Dashboard'}
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            {isUnderwriter
+              ? 'Review and approve quotes, manage policies'
+              : 'Manage quotes and claims'}
+          </Typography>
+        </Stack>
       </Paper>
 
       <Paper
@@ -304,25 +211,40 @@ export default function StaffPage() {
         <Box sx={{ p: 3 }}>
           {activeTab === 'quotes' && (
             <>
-              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-                <Typography variant="h6">
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h6" fontWeight={600}>
                   All Quotes ({filteredQuotes.length})
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Chip
                     label={`Pending: ${quotes.filter((q) => q.status === 'PENDING').length}`}
-                    color="warning"
-                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                      color: '#F59E0B',
+                      border: 'none',
+                      borderRadius: '16px',
+                      fontWeight: 500,
+                    }}
                   />
                   <Chip
                     label={`Approved: ${quotes.filter((q) => q.status === 'APPROVED').length}`}
-                    color="success"
-                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                      color: '#10B981',
+                      border: 'none',
+                      borderRadius: '16px',
+                      fontWeight: 500,
+                    }}
                   />
                   <Chip
                     label={`Rejected: ${quotes.filter((q) => q.status === 'REJECTED').length}`}
-                    color="error"
-                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#EF4444',
+                      border: 'none',
+                      borderRadius: '16px',
+                      fontWeight: 500,
+                    }}
                   />
                   {isUnderwriter && quotes.filter((q) => q.status === 'APPROVED' && !q.policy).length > 0 && (
                     <Button
@@ -331,6 +253,7 @@ export default function StaffPage() {
                       size="small"
                       onClick={() => createMissingPoliciesMutation.mutate()}
                       disabled={createMissingPoliciesMutation.isPending}
+                      sx={{ borderRadius: 0, textTransform: 'none' }}
                     >
                       {createMissingPoliciesMutation.isPending 
                         ? 'Creating...' 
@@ -339,19 +262,160 @@ export default function StaffPage() {
                   )}
                 </Box>
               </Box>
-              <Box sx={{ height: 600, width: '100%' }}>
-                <DataGrid
-                  rows={filteredQuotes}
-                  columns={columns}
-                  loading={isLoading}
-                  disableRowSelectionOnClick
-                  initialState={{
-                    sorting: {
-                      sortModel: [{ field: 'createdAt', sort: 'desc' }],
-                    },
+              {isLoading ? (
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+                  <CircularProgress />
+                </Box>
+              ) : filteredQuotes.length === 0 ? (
+                <Box
+                  sx={{
+                    py: 8,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'text.secondary',
                   }}
-                />
-              </Box>
+                >
+                  <Typography variant="h6" gutterBottom>
+                    No quotes found
+                  </Typography>
+                  <Typography variant="body2">There are no quotes to display.</Typography>
+                </Box>
+              ) : (
+                <Stack spacing={2}>
+                  {filteredQuotes.map((quote) => {
+                    const statusColors: Record<string, { bg: string; color: string; border: string }> = {
+                      APPROVED: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
+                      REJECTED: { bg: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', border: '#EF4444' },
+                      PENDING: { bg: 'rgba(245, 158, 11, 0.08)', color: '#F59E0B', border: '#F59E0B' },
+                      DRAFT: { bg: 'rgba(107, 114, 128, 0.08)', color: '#6B7280', border: '#6B7280' },
+                    };
+                    const config = statusColors[quote.status] || statusColors.DRAFT;
+                    
+                    return (
+                      <Paper
+                        key={quote.id}
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 0,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderLeft: `4px solid ${config.border}`,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                            transform: 'translateX(4px)',
+                          },
+                        }}
+                      >
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={12} sm={2}>
+                            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                              Quote #{quote.id}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                              {new Date(quote.createdAt).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <Typography variant="h6" fontWeight={600} gutterBottom>
+                              {quote.product?.name || 'Unknown Product'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                              {quote.product?.type || 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={2}>
+                            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                              Customer
+                            </Typography>
+                            <Typography variant="body2" fontWeight={500} sx={{ mt: 0.5 }}>
+                              {quote.user?.name || quote.user?.email || 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={2}>
+                            <Typography variant="h6" fontWeight={700} color="primary.main">
+                              ${quote.premium ? Number(quote.premium).toFixed(2) : '0.00'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Monthly Premium
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={3}>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              <Chip
+                                label={quote.status}
+                                sx={{
+                                  backgroundColor: config.bg,
+                                  color: config.color,
+                                  border: `1px solid ${config.border}`,
+                                  fontWeight: 600,
+                                  borderRadius: '20px',
+                                  minWidth: 100,
+                                }}
+                              />
+                              {quote.policy && (
+                                <Chip
+                                  label={quote.policy.policyNumber}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    color: '#3B82F6',
+                                    borderRadius: '16px',
+                                    fontSize: '0.7rem',
+                                  }}
+                                />
+                              )}
+                              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewDetails(quote)}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                                {isUnderwriter && quote.status === 'PENDING' && (
+                                  <>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleApprove(quote)}
+                                      sx={{ color: 'success.main' }}
+                                    >
+                                      <CheckCircleIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleReject(quote)}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <CancelIcon fontSize="small" />
+                                    </IconButton>
+                                  </>
+                                )}
+                                {isUnderwriter && quote.status === 'APPROVED' && !quote.policy && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleCreatePolicy(quote)}
+                                    sx={{ color: 'primary.main' }}
+                                  >
+                                    <AddCardIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              )}
             </>
           )}
 
@@ -361,7 +425,7 @@ export default function StaffPage() {
             </Alert>
           )}
         </Box>
-      </Paper>
+        </Paper>
 
       {/* Quote Details Dialog */}
       <Dialog
@@ -437,7 +501,7 @@ export default function StaffPage() {
                     size="small"
                   />
                 </Grid>
-              </Grid>
+      </Grid>
 
               <Divider />
 
@@ -455,8 +519,8 @@ export default function StaffPage() {
                 >
                   <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                     {JSON.stringify(selectedQuote.metadata, null, 2)}
-                  </Typography>
-                </Paper>
+          </Typography>
+        </Paper>
               </Box>
             </Stack>
           )}
@@ -567,8 +631,8 @@ export default function StaffPage() {
                     }
                     label="Premium Paid"
                   />
-                </Grid>
-              </Grid>
+      </Grid>
+    </Grid>
             </Stack>
           )}
         </DialogContent>

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi, User } from '../lib/api/auth';
 import { useRouter } from 'next/navigation';
+import { loginAtenxionUser } from '../lib/api/atenxion';
 
 interface AuthContextType {
   user: User | null;
@@ -54,6 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('refreshToken', response.refreshToken);
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
+
+    // Call Atenxion login if user is a CUSTOMER
+    if (response.user.role === 'CUSTOMER') {
+      try {
+        await loginAtenxionUser({
+          userId: response.user.id.toString(),
+          customerId: response.user.id.toString(),
+        });
+      } catch (error) {
+        console.error('Failed to login to Atenxion:', error);
+        // Don't block the login if Atenxion fails
+      }
+    }
   };
 
   const register = async (email: string, password: string, name: string) => {

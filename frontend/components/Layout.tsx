@@ -23,9 +23,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useColorMode } from '../lib/theme';
 import { useAuth } from '../contexts/AuthContext';
+import IntegrationWidget from './IntegrationWidget';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
   { label: 'Dashboard', href: '/dashboard' },
   { label: 'Products', href: '/products' },
   { label: 'Quotes', href: '/quotes' },
@@ -131,6 +131,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                     sx={{ cursor: 'pointer' }}
                   />
                 )}
+                {(user?.role === 'CLAIMS_OFFICER' || user?.role === 'ADMIN') && (
+                  <Tab
+                    label="Claims Officer"
+                    onClick={() => router.push('/claims-officer')}
+                    component="div"
+                    sx={{ cursor: 'pointer' }}
+                  />
+                )}
               </Tabs>
             )}
             <IconButton
@@ -140,8 +148,8 @@ export default function Layout({ children }: { children: ReactNode }) {
               sx={{ color: 'common.white' }}
               size="small"
             >
-              {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
+            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
             {isAuthenticated ? (
               <>
                 <IconButton
@@ -197,13 +205,18 @@ export default function Layout({ children }: { children: ReactNode }) {
                 component={Link} 
                 href="/login" 
                 sx={{ 
-                  color: 'common.white',
+                  color: '#FFFFFF',
                   textTransform: 'none',
-                  fontWeight: 500,
+                  fontWeight: 600,
+                  backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                    color: '#FFFFFF',
+                  },
                 }}
               >
-                Login
-              </Button>
+            Login
+          </Button>
             )}
           </Stack>
         </Toolbar>
@@ -259,6 +272,9 @@ export default function Layout({ children }: { children: ReactNode }) {
       >
         <Box sx={{ maxWidth: 1200, mx: 'auto' }}>{children}</Box>
       </Box>
+      
+      {/* Integration Widget - Only for CUSTOMER role */}
+      <IntegrationWidget />
     </Box>
   );
 }

@@ -113,7 +113,7 @@ async function main() {
     if (!created) {
       created = await prisma.product.create({
         data: product
-      });
+    });
     }
     seededProducts.push(created);
   }

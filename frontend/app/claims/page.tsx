@@ -18,28 +18,14 @@ import {
   InputLabel,
   CircularProgress,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { claimsApi, Claim } from '../../lib/api/claims';
 import { policiesApi, Policy } from '../../lib/api/policies';
 import { useAuth } from '../../contexts/AuthContext';
 
-const columns: GridColDef<Claim>[] = [
-  { field: 'id', headerName: 'ID', width: 80 },
-  { field: 'status', headerName: 'Status', flex: 1 },
-  { field: 'claimType', headerName: 'Type', flex: 1 },
-  {
-    field: 'amount',
-    headerName: 'Amount',
-    flex: 1,
-    valueFormatter: ({ value }) => `$${Number(value)?.toFixed(2) || 0}`,
-  },
-  { field: 'incidentDate', headerName: 'Incident Date', flex: 1 },
-  { field: 'description', headerName: 'Description', flex: 2 },
-];
-
 export default function ClaimsPage() {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     policyId: '',
     claimType: 'HEALTH',
@@ -53,6 +39,7 @@ export default function ClaimsPage() {
     queryKey: ['claims'],
     queryFn: () => claimsApi.getAll(),
     enabled: isAuthenticated,
+    refetchOnWindowFocus: true,
   });
 
   const { data: policies = [], isLoading: policiesLoading } = useQuery<Policy[]>({
@@ -77,7 +64,8 @@ export default function ClaimsPage() {
     onSuccess: () => {
       setToast({ message: 'Claim submitted successfully!', severity: 'success' });
       setForm({ policyId: '', claimType: 'HEALTH', amount: '', incidentDate: '', description: '' });
-      // Refetch claims to show the new one
+      // Invalidate and refetch claims to show the new one
+      queryClient.invalidateQueries({ queryKey: ['claims'] });
       refetch();
     },
     onError: (error: Error) => {
@@ -107,7 +95,7 @@ export default function ClaimsPage() {
         <CircularProgress />
       </Box>
     );
-  }
+    }
 
   return (
     <Stack spacing={3}>
@@ -132,33 +120,161 @@ export default function ClaimsPage() {
           Manage claim activity with digital uploads, real-time status updates, and a clear next-step timeline.
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap">
-          <Chip label="Average response: 24 hrs" variant="outlined" color="primary" />
-          <Chip label="Multi-policy support" variant="outlined" color="primary" />
+          <Chip
+            label="Average response: 24 hrs"
+            sx={{
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              color: '#3B82F6',
+              border: 'none',
+              borderRadius: '16px',
+              fontWeight: 500,
+            }}
+          />
+          <Chip
+            label="Multi-policy support"
+            sx={{
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              color: '#10B981',
+              border: 'none',
+              borderRadius: '16px',
+              fontWeight: 500,
+            }}
+          />
         </Stack>
       </Paper>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={7}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="h6" gutterBottom>
-              Claims overview
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
+              Claims Overview
             </Typography>
-            <Box sx={{ height: 360 }}>
-              <DataGrid rows={claims} columns={columns} disableRowSelectionOnClick getRowId={(row) => row.id} />
+            {claims.length === 0 ? (
+              <Box
+                sx={{
+                  py: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                }}
+              >
+                <Typography variant="h6" gutterBottom>
+                  No claims found
+                </Typography>
+                <Typography variant="body2">Submit a claim using the form on the right</Typography>
+              </Box>
+            ) : (
+              <Stack spacing={2}>
+                {claims.map((claim) => {
+                  const statusColors: Record<string, { bg: string; color: string; border: string }> = {
+                    SUBMITTED: { bg: 'rgba(107, 114, 128, 0.08)', color: '#6B7280', border: '#6B7280' },
+                    IN_REVIEW: { bg: 'rgba(59, 130, 246, 0.08)', color: '#3B82F6', border: '#3B82F6' },
+                    APPROVED: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
+                    PARTIALLY_APPROVED: { bg: 'rgba(245, 158, 11, 0.08)', color: '#F59E0B', border: '#F59E0B' },
+                    REJECTED: { bg: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', border: '#EF4444' },
+                    PAID: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
+                  };
+                  const config = statusColors[claim.status] || statusColors.SUBMITTED;
+                  
+                  return (
+                    <Paper
+                      key={claim.id}
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: 0,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderLeft: `4px solid ${config.border}`,
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                          transform: 'translateX(4px)',
+                        },
+                      }}
+                    >
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={2}>
+                          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                            Claim #{claim.id}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {new Date(claim.incidentDate).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={3}>
+                          <Chip
+                            label={claim.claimType}
+                            size="small"
+                            sx={{
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              color: '#3B82F6',
+                              borderRadius: '16px',
+                              mb: 1,
+                            }}
+                          />
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {claim.description.length > 50 
+                              ? `${claim.description.substring(0, 50)}...` 
+                              : claim.description}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={3}>
+                          <Typography variant="h6" fontWeight={700} color="primary.main">
+                            ${Number(claim.amount).toFixed(2)}
+                          </Typography>
+                          {claim.approvedAmount != null && (
+                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
+                              Approved: ${Number(claim.approvedAmount).toFixed(2)}
+                            </Typography>
+                          )}
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Chip
+                              label={claim.status.replace('_', ' ')}
+                              sx={{
+                                backgroundColor: config.bg,
+                                color: config.color,
+                                border: `1px solid ${config.border}`,
+                                fontWeight: 600,
+                                borderRadius: '20px',
+                                minWidth: 100,
+                              }}
+                            />
             </Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}>
+                            Submitted: {new Date(claim.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={5}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="h6" gutterBottom>
-              Submit a claim
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 1 }}>
+              Submit a Claim
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Fill out the form below to submit a new insurance claim
             </Typography>
             {!isAuthenticated && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
+              <Alert severity="warning" sx={{ mb: 3, borderRadius: 0 }}>
                 Please log in to submit a claim
               </Alert>
             )}
-            <Stack spacing={2}>
+            <Stack spacing={3}>
               <FormControl fullWidth required>
                 <InputLabel>Select Policy</InputLabel>
                 {policiesLoading ? (
@@ -167,9 +283,9 @@ export default function ClaimsPage() {
                   </Box>
                 ) : (
                   <Select
-                    value={form.policyId}
+                value={form.policyId}
                     label="Select Policy"
-                    onChange={(e) => setForm({ ...form, policyId: e.target.value })}
+                onChange={(e) => setForm({ ...form, policyId: e.target.value })}
                     disabled={!isAuthenticated || submitClaimMutation.isPending || policies.length === 0}
                   >
                     {policies.length === 0 ? (
@@ -241,8 +357,9 @@ export default function ClaimsPage() {
                 variant="contained"
                 disabled={!isAuthenticated || submitClaimMutation.isPending}
                 fullWidth
+                sx={{ borderRadius: 0, textTransform: 'none', py: 1.5, fontWeight: 600 }}
               >
-                {submitClaimMutation.isPending ? 'Submitting...' : 'Submit claim'}
+                {submitClaimMutation.isPending ? 'Submitting...' : 'Submit Claim'}
               </Button>
             </Stack>
           </Paper>

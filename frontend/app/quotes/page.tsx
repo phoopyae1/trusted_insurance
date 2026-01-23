@@ -204,7 +204,7 @@ export default function QuotesPage() {
       }
       // Only include relevant fields in metadata based on product type
       const metadata: any = {
-        age: values.age,
+            age: values.age,
       };
       
       if (values.smoker !== undefined) {
@@ -324,7 +324,7 @@ export default function QuotesPage() {
       }
       
       const valid = await trigger(fields);
-      if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+    if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
     }
   };
   const back = () => setActiveStep((prev) => Math.max(prev - 1, 0));
@@ -449,55 +449,190 @@ export default function QuotesPage() {
                 </Alert>
               ) : (
                 <>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
                     <Chip
                       label={`Pending: ${quotes.filter((q) => q.status === 'PENDING').length}`}
-                      color="warning"
-                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        color: '#F59E0B',
+                        border: 'none',
+                        borderRadius: '16px',
+                        fontWeight: 500,
+                      }}
                     />
                     <Chip
                       label={`Approved: ${quotes.filter((q) => q.status === 'APPROVED').length}`}
-                      color="success"
-                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10B981',
+                        border: 'none',
+                        borderRadius: '16px',
+                        fontWeight: 500,
+                      }}
                     />
                     <Chip
                       label={`Rejected: ${quotes.filter((q) => q.status === 'REJECTED').length}`}
-                      color="error"
-                      size="small"
-                    />
-                  </Box>
-                  <Box sx={{ height: 500, width: '100%' }}>
-                    <DataGrid
-                      rows={quotes}
-                      columns={quoteColumns}
-                      loading={quotesLoading}
-                      disableRowSelectionOnClick
-                      initialState={{
-                        sorting: {
-                          sortModel: [{ field: 'createdAt', sort: 'desc' }],
-                        },
+                      sx={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: '#EF4444',
+                        border: 'none',
+                        borderRadius: '16px',
+                        fontWeight: 500,
                       }}
                     />
                   </Box>
+                  <Stack spacing={2}>
+                    {quotes.map((quote) => {
+                      const statusColor = getStatusColor(quote.status);
+                      const statusConfig: Record<string, { 
+                        bg: string; 
+                        color: string; 
+                        border: string;
+                      }> = {
+                        APPROVED: { 
+                          bg: 'rgba(16, 185, 129, 0.08)', 
+                          color: '#10B981', 
+                          border: '#10B981',
+                        },
+                        REJECTED: { 
+                          bg: 'rgba(239, 68, 68, 0.08)', 
+                          color: '#EF4444', 
+                          border: '#EF4444',
+                        },
+                        PENDING: { 
+                          bg: 'rgba(245, 158, 11, 0.08)', 
+                          color: '#F59E0B', 
+                          border: '#F59E0B',
+                        },
+                        DRAFT: { 
+                          bg: 'rgba(107, 114, 128, 0.08)', 
+                          color: '#6B7280', 
+                          border: '#6B7280',
+                        },
+                      };
+                      const config = statusConfig[quote.status] || statusConfig.DRAFT;
+                      
+                      return (
+                        <Paper
+                          key={quote.id}
+                          elevation={0}
+                          sx={{
+                            p: 3,
+                            borderRadius: 0,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderLeft: `4px solid ${config.border}`,
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <Grid container spacing={2} alignItems="center">
+                            <Grid item xs={12} sm={2}>
+                              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                                Quote #{quote.id}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                {new Date(quote.createdAt).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="h6" fontWeight={600} gutterBottom>
+                                {quote.product?.name || 'Unknown Product'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                {quote.product?.type || 'N/A'}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                              <Typography variant="h5" fontWeight={700} color="primary.main">
+                                ${quote.premium ? Number(quote.premium).toFixed(2) : '0.00'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Monthly Premium
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <Chip
+                                  label={quote.status}
+                                  sx={{
+                                    backgroundColor: config.bg,
+                                    color: config.color,
+                                    border: `1px solid ${config.border}`,
+                                    fontWeight: 600,
+                                    borderRadius: '20px',
+                                    minWidth: 100,
+                                  }}
+                                />
+                              </Box>
+                              {quote.policy && (
+                                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                                  <Chip
+                                    label={quote.policy.policyNumber}
+                                    size="small"
+                                    sx={{
+                                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                      color: '#3B82F6',
+                                      borderRadius: '16px',
+                                      fontSize: '0.7rem',
+                                    }}
+                                  />
+                                </Box>
+                              )}
+                            </Grid>
+                          </Grid>
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
                 </>
               )}
             </Stack>
           )}
 
           {activeTab === 'create' && (
-            <Grid container spacing={3}>
+      <Grid container spacing={3}>
         <Grid item xs={12} lg={8}>
           <Paper
             elevation={0}
             sx={{ p: { xs: 3, md: 4 }, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}
           >
-            <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Request New Quote
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Complete the steps below to get a personalized insurance quote
+              </Typography>
+              <Stepper activeStep={activeStep} sx={{ mb: 0 }}>
+                {steps.map((label, index) => (
+                  <Step key={label} completed={index < activeStep}>
+                    <StepLabel
+                      sx={{
+                        '& .MuiStepLabel-label': {
+                          fontWeight: index === activeStep ? 600 : 400,
+                          fontSize: '0.875rem',
+                        },
+                        '& .MuiStepLabel-iconContainer': {
+                          '& .MuiSvgIcon-root': {
+                            fontSize: '1.75rem',
+                          },
+                        },
+                      }}
+                    >
+                      {label}
+                    </StepLabel>
                 </Step>
               ))}
             </Stepper>
+            </Box>
 
             {activeStep === 0 && (
               <FormControl fullWidth error={Boolean(formState.errors.productId)}>
@@ -533,44 +668,54 @@ export default function QuotesPage() {
             )}
 
             {activeStep === 1 && (
-              <Stack spacing={2}>
+              <Stack spacing={3}>
                 {!selectedProduct && (
                   <Alert severity="info">Please select a product first</Alert>
                 )}
                 {selectedProduct && (
                   <>
-                    <Controller
-                      name="age"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          label="Age"
-                          type="number"
-                          value={field.value}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          error={Boolean(formState.errors.age)}
-                          helperText={formState.errors.age?.message}
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+                        Applicant Information
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Provide your details to get an accurate quote for {selectedProduct.name}
+                      </Typography>
+                    </Box>
+                    <Divider />
+                <Controller
+                  name="age"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Age"
+                      type="number"
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.age)}
+                      helperText={formState.errors.age?.message}
                           required
-                        />
-                      )}
+                          fullWidth
                     />
+                  )}
+                />
                     {selectedProduct.type === 'HEALTH' && (
                       <>
-                        <FormControlLabel
-                          control={
-                            <Controller
-                              name="smoker"
-                              control={control}
-                              render={({ field }) => (
+                <FormControlLabel
+                  control={
+                    <Controller
+                      name="smoker"
+                      control={control}
+                      render={({ field }) => (
                                 <Checkbox 
                                   checked={field.value || false} 
                                   onChange={(e) => field.onChange(e.target.checked)} 
                                 />
-                              )}
-                            />
-                          }
-                          label="Smoker"
-                        />
+                      )}
+                    />
+                  }
+                  label="Smoker"
+                />
                         <Controller
                           name="preExistingConditions"
                           control={control}
@@ -794,16 +939,16 @@ export default function QuotesPage() {
                     )}
                     {selectedProduct.type === 'MOTOR' && (
                       <>
-                        <Controller
-                          name="vehicleValue"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
+                <Controller
+                  name="vehicleValue"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
                               label="Vehicle value ($)"
-                              type="number"
+                      type="number"
                               value={field.value || ''}
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                              error={Boolean(formState.errors.vehicleValue)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.vehicleValue)}
                               helperText={formState.errors.vehicleValue?.message || 'Enter the value of your vehicle'}
                               required
                               inputProps={{ min: 0, step: 100 }}
@@ -823,9 +968,9 @@ export default function QuotesPage() {
                               helperText={formState.errors.drivingExperience?.message || 'How many years have you been driving?'}
                               inputProps={{ min: 0, max: 80 }}
                               placeholder="e.g., 5"
-                            />
-                          )}
-                        />
+                    />
+                  )}
+                />
                         <Controller
                           name="accidentHistory"
                           control={control}
@@ -897,22 +1042,22 @@ export default function QuotesPage() {
                       </>
                     )}
                     {selectedProduct.type === 'TRAVEL' && (
-                      <Controller
-                        name="tripDuration"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            label="Trip duration (days)"
-                            type="number"
+                <Controller
+                  name="tripDuration"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Trip duration (days)"
+                      type="number"
                             value={field.value || ''}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            error={Boolean(formState.errors.tripDuration)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.tripDuration)}
                             helperText={formState.errors.tripDuration?.message || 'How many days will you be traveling?'}
                             required
                             inputProps={{ min: 1 }}
-                          />
-                        )}
-                      />
+                    />
+                  )}
+                />
                     )}
                   </>
                 )}
@@ -921,12 +1066,26 @@ export default function QuotesPage() {
 
             {activeStep === 2 && (
               <Box>
-                <Typography variant="body1" sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1 }}>
+                  Review Your Quote Request
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   {isAuthenticated 
-                    ? 'Ready to submit your quote request. Review the details below and click Submit.'
+                    ? 'Please review all the information below. Click Submit to request your quote.'
                     : 'Please log in to submit a quote request.'}
                 </Typography>
-                <Stack spacing={1}>
+                <Divider sx={{ mb: 3 }} />
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 0,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    backgroundColor: 'rgba(0, 102, 204, 0.02)',
+                  }}
+                >
+                  <Stack spacing={2}>
                   <Typography variant="body2" color="text.secondary">
                     <strong>Product:</strong> {selectedProduct?.name || 'Not selected'}
                   </Typography>
@@ -973,10 +1132,10 @@ export default function QuotesPage() {
                   )}
                   {selectedProduct?.type === 'LIFE' && (
                     <>
-                      <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                         <strong>Smoker:</strong> {watch('smoker') ? 'Yes' : 'No'}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                         <strong>Drinker:</strong> {watch('drinker') ? 'Yes' : 'No'}
                       </Typography>
                       {watch('preExistingConditions') && (
@@ -1046,26 +1205,41 @@ export default function QuotesPage() {
                       {watch('tripDuration') && (
                         <Typography variant="body2" color="text.secondary">
                           <strong>Trip Duration:</strong> {watch('tripDuration')} days
-                        </Typography>
+                </Typography>
                       )}
                     </>
                   )}
-                </Stack>
+                  </Stack>
+                </Paper>
               </Box>
             )}
 
-            <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-              <Button onClick={back} disabled={activeStep === 0} variant="outlined">
+            <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+              <Button 
+                onClick={back} 
+                disabled={activeStep === 0} 
+                variant="outlined"
+                sx={{ borderRadius: 0, textTransform: 'none', minWidth: 100 }}
+              >
                 Back
               </Button>
-              {activeStep < steps.length - 1 && <Button onClick={next}>Next</Button>}
+              {activeStep < steps.length - 1 && (
+                <Button 
+                  onClick={next}
+                  variant="contained"
+                  sx={{ borderRadius: 0, textTransform: 'none', minWidth: 100 }}
+                >
+                  Next
+                </Button>
+              )}
               {activeStep === steps.length - 1 && (
                 <Button 
                   onClick={handleSubmit(onSubmit)} 
                   disabled={submitQuoteMutation.isPending || !isAuthenticated}
                   variant="contained"
+                  sx={{ borderRadius: 0, textTransform: 'none', minWidth: 150 }}
                 >
-                  {submitQuoteMutation.isPending ? 'Submitting...' : 'Submit quote'}
+                  {submitQuoteMutation.isPending ? 'Submitting...' : 'Submit Quote'}
                 </Button>
               )}
             </Stack>

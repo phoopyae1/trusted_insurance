@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
@@ -27,12 +26,15 @@ import {
   FormControlLabel,
   Checkbox,
   Snackbar,
+  IconButton,
+  Menu,
 } from '@mui/material';
 import { policiesApi, Policy } from '../../lib/api/policies';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api/client';
 import EditIcon from '@mui/icons-material/Edit';
 import PaymentIcon from '@mui/icons-material/Payment';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 // Date formatting helper
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
@@ -54,6 +56,7 @@ export default function PoliciesPage() {
     premiumPaid: false,
   });
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ element: HTMLElement; policy: Policy } | null>(null);
   const { isAuthenticated, user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -130,100 +133,6 @@ export default function PoliciesPage() {
     });
   };
 
-  const columns: GridColDef<Policy>[] = [
-    { field: 'policyNumber', headerName: 'Policy Number', flex: 1 },
-    {
-      field: 'product',
-      headerName: 'Product',
-      flex: 1,
-      valueGetter: (params) => params.row?.product?.name || 'N/A',
-    },
-    {
-      field: 'premium',
-      headerName: 'Premium',
-      flex: 1,
-      valueFormatter: ({ value }) => `$${Number(value)?.toFixed(2) || 0}`,
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      flex: 1,
-      renderCell: (params) => {
-        const status = params.value as string;
-        const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
-          ACTIVE: 'success',
-          LAPSED: 'warning',
-          CANCELLED: 'error',
-          RENEWED: 'success',
-        };
-        return (
-          <Chip
-            label={status}
-            color={colorMap[status] || 'default'}
-            size="small"
-            variant="outlined"
-          />
-        );
-      },
-    },
-    {
-      field: 'startDate',
-      headerName: 'Start Date',
-      flex: 1,
-      valueFormatter: ({ value }) => formatDate(value),
-    },
-    {
-      field: 'endDate',
-      headerName: 'End Date',
-      flex: 1,
-      valueFormatter: ({ value }) => formatDate(value),
-    },
-    {
-      field: 'premiumPaid',
-      headerName: 'Premium Paid',
-      flex: 1,
-      renderCell: (params) => (
-        <Chip
-          label={params.value ? 'Paid' : 'Pending'}
-          color={params.value ? 'success' : 'warning'}
-          size="small"
-          variant="outlined"
-        />
-      ),
-    },
-    ...(isStaff ? [{
-      field: 'actions',
-      type: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      getActions: (params: any) => {
-        const policy = params.row as Policy;
-        const actions = [
-          <GridActionsCellItem
-            key="edit"
-            icon={<EditIcon />}
-            label="Edit"
-            onClick={() => handleEdit(policy)}
-          />,
-        ];
-        
-        // Add "Mark as Paid" action if premium is not paid
-        if (!policy.premiumPaid) {
-          actions.push(
-            <GridActionsCellItem
-              key="mark-paid"
-              icon={<PaymentIcon />}
-              label="Mark as Paid"
-              onClick={() => handleMarkAsPaid(policy)}
-              showInMenu
-            />
-          );
-        }
-        
-        return actions;
-      },
-    } as GridColDef<Policy>] : []),
-  ];
 
 
   if (isLoading) {
@@ -314,19 +223,164 @@ export default function PoliciesPage() {
         elevation={0}
         sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}
       >
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
           All Policies
         </Typography>
-        <Box sx={{ height: 500, mt: 2 }}>
-          <DataGrid
-            rows={policies || []}
-            columns={columns}
-            disableRowSelectionOnClick
-            pageSizeOptions={[10, 25, 50]}
-            getRowId={(row) => row.id}
-          />
-        </Box>
+        {policies && policies.length === 0 ? (
+          <Box
+            sx={{
+              py: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+            }}
+          >
+            <Typography variant="h6" gutterBottom>
+              No policies found
+            </Typography>
+            <Typography variant="body2">You don't have any policies yet. Request a quote to get started.</Typography>
+          </Box>
+        ) : (
+          <Stack spacing={2}>
+            {policies?.map((policy) => {
+              const statusColors: Record<string, { bg: string; color: string; border: string }> = {
+                ACTIVE: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
+                LAPSED: { bg: 'rgba(245, 158, 11, 0.08)', color: '#F59E0B', border: '#F59E0B' },
+                CANCELLED: { bg: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', border: '#EF4444' },
+                RENEWED: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
+              };
+              const config = statusColors[policy.status] || { bg: 'rgba(107, 114, 128, 0.08)', color: '#6B7280', border: '#6B7280' };
+              const menuOpen = Boolean(menuAnchor && menuAnchor.policy.id === policy.id);
+
+              return (
+                <Paper
+                  key={policy.id}
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 0,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderLeft: `4px solid ${config.border}`,
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    '&:hover': {
+                      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                      transform: 'translateX(4px)',
+                    },
+                  }}
+                >
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                        Policy Number
+                      </Typography>
+                      <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
+                        {policy.policyNumber}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                        Product
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600} sx={{ mt: 0.5 }}>
+                        {policy.product?.name || 'Unknown Product'}
+                      </Typography>
+                      <Chip
+                        label={policy.product?.type || 'N/A'}
+                        size="small"
+                        sx={{
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3B82F6',
+                          borderRadius: '16px',
+                          mt: 0.5,
+                          fontSize: '0.7rem',
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                        Premium
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary.main" sx={{ mt: 0.5 }}>
+                        ${Number(policy.premium).toFixed(2)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
+                        Coverage Period
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        {formatDate(policy.startDate)} - {formatDate(policy.endDate)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Chip
+                          label={policy.status}
+                          sx={{
+                            backgroundColor: config.bg,
+                            color: config.color,
+                            border: `1px solid ${config.border}`,
+                            fontWeight: 600,
+                            borderRadius: '20px',
+                            mb: 0.5,
+                          }}
+                        />
+                        {isStaff && (
+                          <IconButton
+                            size="small"
+                            onClick={(e) => setMenuAnchor({ element: e.currentTarget, policy })}
+                            sx={{ ml: 'auto' }}
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        )}
+                      </Box>
+                      <Chip
+                        label={policy.premiumPaid ? 'Paid' : 'Pending'}
+                        size="small"
+                        sx={{
+                          backgroundColor: policy.premiumPaid 
+                            ? 'rgba(16, 185, 129, 0.1)' 
+                            : 'rgba(245, 158, 11, 0.1)',
+                          color: policy.premiumPaid ? '#10B981' : '#F59E0B',
+                          borderRadius: '16px',
+                          fontSize: '0.7rem',
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
       </Paper>
+
+      {/* Actions Menu */}
+      {isStaff && menuAnchor && (
+        <Menu
+          anchorEl={menuAnchor.element}
+          open={Boolean(menuAnchor)}
+          onClose={() => setMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem onClick={() => { handleEdit(menuAnchor.policy); setMenuAnchor(null); }}>
+            <EditIcon sx={{ mr: 1, fontSize: 20 }} />
+            Edit Policy
+          </MenuItem>
+          {!menuAnchor.policy.premiumPaid && (
+            <MenuItem onClick={() => { handleMarkAsPaid(menuAnchor.policy); setMenuAnchor(null); }}>
+              <PaymentIcon sx={{ mr: 1, fontSize: 20 }} />
+              Mark as Paid
+            </MenuItem>
+          )}
+        </Menu>
+      )}
 
       {/* Edit Policy Dialog */}
       <Dialog

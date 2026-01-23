@@ -55,14 +55,14 @@ export default function HomePage() {
       {/* Hero Section */}
       <Container maxWidth="lg">
         <Box
-          sx={{
+        sx={{
             py: { xs: 6, md: 10 },
             textAlign: 'center',
           }}
         >
-          <Chip
-            label="Modern Tech Insurance"
-            color="secondary"
+                <Chip
+                  label="Modern Tech Insurance"
+                  color="secondary"
             sx={{
               mb: 3,
               fontWeight: 600,
@@ -70,7 +70,7 @@ export default function HomePage() {
               height: 32,
               px: 2,
             }}
-          />
+                />
           <Typography
             variant="h2"
             fontWeight={700}
@@ -82,8 +82,8 @@ export default function HomePage() {
               mx: 'auto',
             }}
           >
-            Insurance built for fast digital teams.
-          </Typography>
+                  Insurance built for fast digital teams.
+                </Typography>
           <Typography
             variant="h6"
             color="text.secondary"
@@ -96,7 +96,7 @@ export default function HomePage() {
             }}
           >
             Launch policies, quotes, and claims workflows from a modern platform that keeps customers informed at every step.
-          </Typography>
+                </Typography>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
@@ -115,8 +115,8 @@ export default function HomePage() {
                 textTransform: 'none',
               }}
             >
-              Start a quote
-            </Button>
+                  Start a quote
+                </Button>
             <Button
               component={Link}
               href="/products"
@@ -129,9 +129,9 @@ export default function HomePage() {
                 textTransform: 'none',
               }}
             >
-              Explore products
-            </Button>
-          </Stack>
+                  Explore products
+                </Button>
+              </Stack>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
@@ -149,10 +149,10 @@ export default function HomePage() {
             <Stack direction="row" spacing={1} alignItems="center">
               <PhoneIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
               <Typography variant="body1" color="text.secondary" fontWeight={500}>
-                +380 (68) 293 38 38
-              </Typography>
+                  +380 (68) 293 38 38
+                </Typography>
+              </Stack>
             </Stack>
-          </Stack>
         </Box>
       </Container>
 
@@ -176,13 +176,13 @@ export default function HomePage() {
               const Icon = card.icon;
               return (
                 <Grid item xs={12} md={4} key={card.title}>
-                  <Paper
-                    elevation={0}
-                    sx={{
+                <Paper
+                  elevation={0}
+                  sx={{
                       p: 4,
                       height: '100%',
-                      border: '1px solid',
-                      borderColor: 'divider',
+                    border: '1px solid',
+                    borderColor: 'divider',
                       borderRadius: 3,
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -190,8 +190,8 @@ export default function HomePage() {
                         boxShadow: 4,
                         borderColor: 'primary.main',
                       },
-                    }}
-                  >
+                  }}
+                >
                     <Stack spacing={3}>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Box
@@ -212,16 +212,16 @@ export default function HomePage() {
                         </Box>
                         <Icon sx={{ fontSize: 32, color: 'primary.main' }} />
                       </Stack>
-                      <Box>
+                    <Box>
                         <Typography variant="h5" fontWeight={700} gutterBottom>
-                          {card.title}
-                        </Typography>
+                        {card.title}
+                      </Typography>
                         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                          {card.description}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Paper>
+                        {card.description}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
                 </Grid>
               );
             })}
@@ -233,30 +233,30 @@ export default function HomePage() {
       <Box sx={{ py: { xs: 6, md: 10 } }}>
         <Container maxWidth="lg">
           <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={5}>
+        <Grid item xs={12} md={5}>
               <Typography
                 variant="h3"
                 fontWeight={700}
                 sx={{ mb: 3, fontSize: { xs: '1.75rem', md: '2.5rem' } }}
               >
-                Why can you trust us?
-              </Typography>
+            Why can you trust us?
+          </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.8, fontSize: '1.125rem' }}>
-                Our insurance policies cover a wide range of risks, from protecting your property to safeguarding your
-                health and well-being. We offer comprehensive solutions to ensure you are fully protected.
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={7}>
+            Our insurance policies cover a wide range of risks, from protecting your property to safeguarding your
+            health and well-being. We offer comprehensive solutions to ensure you are fully protected.
+          </Typography>
+        </Grid>
+        <Grid item xs={12} md={7}>
               <Stack spacing={3}>
                 {trustPoints.map((point) => {
                   const Icon = point.icon;
                   return (
-                    <Paper
-                      key={point.title}
-                      elevation={0}
-                      sx={{
-                        p: 3,
-                        border: '1px solid',
+              <Paper
+                key={point.title}
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: '1px solid',
                         borderColor: 'divider',
                         borderRadius: 3,
                         transition: 'all 0.3s ease',
@@ -264,8 +264,8 @@ export default function HomePage() {
                           borderColor: 'primary.main',
                           backgroundColor: 'action.hover',
                         },
-                      }}
-                    >
+                }}
+              >
                       <Stack direction="row" spacing={3} alignItems="flex-start">
                         <Box
                           sx={{
@@ -284,19 +284,19 @@ export default function HomePage() {
                         </Box>
                         <Box>
                           <Typography variant="h6" fontWeight={700} gutterBottom>
-                            {point.title}
-                          </Typography>
+                  {point.title}
+                </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                            {point.description}
-                          </Typography>
+                  {point.description}
+                </Typography>
                         </Box>
                       </Stack>
-                    </Paper>
+              </Paper>
                   );
                 })}
-              </Stack>
-            </Grid>
-          </Grid>
+          </Stack>
+        </Grid>
+      </Grid>
         </Container>
       </Box>
 
@@ -309,11 +309,11 @@ export default function HomePage() {
               fontWeight={700}
               sx={{ mb: 2, fontSize: { xs: '1.75rem', md: '2.5rem' } }}
             >
-              How does the insurance process work?
-            </Typography>
+          How does the insurance process work?
+        </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-              Understanding how insurance works is simple with us.
-            </Typography>
+          Understanding how insurance works is simple with us.
+        </Typography>
           </Box>
           <Grid container spacing={4}>
             {[
@@ -333,14 +333,14 @@ export default function HomePage() {
                 label: '03',
               },
             ].map((step) => (
-              <Grid item xs={12} md={4} key={step.title}>
-                <Paper
-                  elevation={0}
-                  sx={{
+            <Grid item xs={12} md={4} key={step.title}>
+              <Paper
+                elevation={0}
+                sx={{
                     p: 4,
                     height: '100%',
-                    border: '1px solid',
-                    borderColor: 'divider',
+                  border: '1px solid',
+                  borderColor: 'divider',
                     borderRadius: 3,
                     textAlign: 'center',
                     transition: 'all 0.3s ease',
@@ -349,8 +349,8 @@ export default function HomePage() {
                       boxShadow: 4,
                       borderColor: 'primary.main',
                     },
-                  }}
-                >
+                }}
+              >
                   <Stack spacing={3} alignItems="center">
                     <Box
                       sx={{
@@ -366,21 +366,21 @@ export default function HomePage() {
                         fontSize: '1.5rem',
                       }}
                     >
-                      {step.label}
+                    {step.label}
                     </Box>
                     <Box>
                       <Typography variant="h6" fontWeight={700} gutterBottom>
-                        {step.title}
-                      </Typography>
+                    {step.title}
+                  </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                        {step.description}
-                      </Typography>
+                    {step.description}
+                  </Typography>
                     </Box>
-                  </Stack>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+                </Stack>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
         </Container>
       </Box>
     </Box>

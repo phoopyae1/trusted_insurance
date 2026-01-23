@@ -40,6 +40,7 @@ enum ClaimStatus {
   SUBMITTED
   IN_REVIEW
   APPROVED
+  PARTIALLY_APPROVED
   REJECTED
   PAID
 }
@@ -66,10 +67,11 @@ model User {
   profile   CustomerProfile?
   quotes    Quote[]
   policies  Policy[]
-  claims    Claim[]
-  payments  Payment[]
-  auditLogs AuditLog[] @relation("AuditLogActor")
-  refreshTokens RefreshToken[]
+  claims         Claim[]
+  assessedClaims Claim[]  @relation("ClaimAssessor")
+  payments       Payment[]
+  auditLogs      AuditLog[] @relation("AuditLogActor")
+  refreshTokens  RefreshToken[]
   passwordResets PasswordReset[]
 }
 
@@ -135,18 +137,28 @@ model Policy {
 }
 
 model Claim {
-  id           Int         @id @default(autoincrement())
-  policy       Policy      @relation(fields: [policyId], references: [id])
-  policyId     Int
-  user         User        @relation(fields: [userId], references: [id])
-  userId       Int
-  claimType    ProductType
-  amount       Float
-  incidentDate DateTime
-  description  String
-  status       ClaimStatus @default(SUBMITTED)
-  attachments  Json?
-  createdAt    DateTime    @default(now())
+  id              Int         @id @default(autoincrement())
+  policy          Policy      @relation(fields: [policyId], references: [id])
+  policyId        Int
+  user            User        @relation(fields: [userId], references: [id])
+  userId          Int
+  claimType       ProductType
+  amount          Float
+  incidentDate    DateTime
+  description     String
+  status          ClaimStatus @default(SUBMITTED)
+  attachments     Json?
+  // Assessment fields
+  eligibleAmount  Float?
+  deductible      Float?
+  approvedAmount  Float?
+  decisionReason  String?
+  assessedAt      DateTime?
+  assessedBy      Int?
+  assessedByUser  User?       @relation("ClaimAssessor", fields: [assessedBy], references: [id])
+  paidAt          DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model Payment {

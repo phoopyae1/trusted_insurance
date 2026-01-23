@@ -41,7 +41,7 @@ router.get(
   '/',
   authenticate,
   asyncHandler(async (req, res) => {
-    const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
+  const where = STAFF_ROLES.includes(req.user.role) ? {} : { userId: req.user.id };
     const quotes = await prisma.quote.findMany({
       where,
       include: { product: true, user: true, policy: true },
