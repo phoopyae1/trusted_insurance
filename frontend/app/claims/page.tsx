@@ -285,7 +285,15 @@ export default function ClaimsPage() {
                   <Select
                 value={form.policyId}
                     label="Select Policy"
-                onChange={(e) => setForm({ ...form, policyId: e.target.value })}
+                onChange={(e) => {
+                      const selectedPolicyId = e.target.value;
+                      const selectedPolicy = policies.find(p => p.id.toString() === selectedPolicyId);
+                      setForm({
+                        ...form,
+                        policyId: selectedPolicyId,
+                        claimType: selectedPolicy?.product?.type || 'HEALTH' // Auto-set claim type based on policy product
+                      });
+                    }}
                     disabled={!isAuthenticated || submitClaimMutation.isPending || policies.length === 0}
                   >
                     {policies.length === 0 ? (
@@ -322,6 +330,11 @@ export default function ClaimsPage() {
                   <MenuItem value="MOTOR">Motor</MenuItem>
                   <MenuItem value="TRAVEL">Travel</MenuItem>
                 </Select>
+                {form.policyId && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Claim type auto-set to match policy product type ({policies.find(p => p.id.toString() === form.policyId)?.product?.type || 'N/A'})
+                  </Typography>
+                )}
               </FormControl>
               <TextField
                 label="Amount"
@@ -341,6 +354,33 @@ export default function ClaimsPage() {
                 onChange={(e) => setForm({ ...form, incidentDate: e.target.value })}
                 required
                 disabled={!isAuthenticated || submitClaimMutation.isPending}
+                helperText={
+                  form.policyId
+                    ? (() => {
+                        const selectedPolicy = policies.find(p => p.id.toString() === form.policyId);
+                        if (selectedPolicy) {
+                          const startDate = new Date(selectedPolicy.startDate).toISOString().split('T')[0];
+                          const endDate = new Date(selectedPolicy.endDate).toISOString().split('T')[0];
+                          return `Must be between ${startDate} and ${endDate}`;
+                        }
+                        return '';
+                      })()
+                    : 'Select a policy first to see date range'
+                }
+                inputProps={{
+                  min: form.policyId
+                    ? (() => {
+                        const selectedPolicy = policies.find(p => p.id.toString() === form.policyId);
+                        return selectedPolicy ? new Date(selectedPolicy.startDate).toISOString().split('T')[0] : undefined;
+                      })()
+                    : undefined,
+                  max: form.policyId
+                    ? (() => {
+                        const selectedPolicy = policies.find(p => p.id.toString() === form.policyId);
+                        return selectedPolicy ? new Date(selectedPolicy.endDate).toISOString().split('T')[0] : undefined;
+                      })()
+                    : undefined,
+                }}
               />
               <TextField
                 label="Description"

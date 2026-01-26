@@ -650,11 +650,23 @@ export default function ClaimsOfficerPage() {
                     />
                     <TextField
                       label="Deductible"
-                      type="number"
+                      type="text"
                       value={decisionForm.deductible}
                       onChange={(e) => {
-                        setDecisionForm({ ...decisionForm, deductible: e.target.value });
-                        setTimeout(calculateApprovedAmount, 100);
+                        const value = e.target.value;
+                        // Allow empty string, numbers, and decimal point
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          setDecisionForm({ ...decisionForm, deductible: value });
+                          // Calculate approved amount after a short delay
+                          setTimeout(() => {
+                            if (decisionForm.eligibleAmount && value) {
+                              const eligible = Number(decisionForm.eligibleAmount) || 0;
+                              const deductible = Number(value) || 0;
+                              const approved = Math.max(0, eligible - deductible);
+                              setDecisionForm(prev => ({ ...prev, approvedAmount: approved.toString() }));
+                            }
+                          }, 100);
+                        }
                       }}
                       inputProps={{ min: 0, step: 0.01 }}
                       helperText="Amount to be deducted (type the deductible amount)"

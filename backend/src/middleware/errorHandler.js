@@ -27,6 +27,18 @@ function errorHandler(err, req, res, next) {
     error = new AppError('Token expired', 401, 'TOKEN_EXPIRED');
   }
 
+  // Handle ValidationError with errors array
+  if (err.errors && Array.isArray(err.errors)) {
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      error: {
+        message: error.message || 'Validation failed',
+        code: error.code || 'VALIDATION_ERROR',
+        errors: err.errors
+      }
+    });
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
     error: {

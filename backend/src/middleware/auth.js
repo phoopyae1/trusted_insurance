@@ -87,4 +87,31 @@ function authorize(roles = []) {
   };
 }
 
-module.exports = { authenticate, authorize };
+// Middleware specifically for customer role
+function requireCustomer(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED'
+      }
+    });
+  }
+  
+  if (req.user.role !== 'CUSTOMER') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        message: 'Forbidden: This endpoint is only accessible to customers',
+        code: 'FORBIDDEN',
+        requiredRole: 'CUSTOMER',
+        userRole: req.user.role
+      }
+    });
+  }
+  
+  next();
+}
+
+module.exports = { authenticate, authorize, requireCustomer };

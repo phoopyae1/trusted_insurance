@@ -55,8 +55,6 @@ export default function Layout({ children }: { children: ReactNode }) {
     await logout();
   };
 
-  const currentTab = navLinks.findIndex((link) => link.href === pathname);
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'background.default' }}>
       <AppBar 
@@ -87,7 +85,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
             {isAuthenticated && !isMobile && (
               <Tabs
-                value={currentTab >= 0 ? currentTab : false}
+                value={pathname}
+                onChange={(e, newValue) => {
+                  window.location.href = newValue;
+                }}
                 sx={{
                   '& .MuiTab-root': {
                     color: 'rgba(255, 255, 255, 0.7)',
@@ -99,10 +100,12 @@ export default function Layout({ children }: { children: ReactNode }) {
                       color: 'common.white',
                       fontWeight: 600,
                     },
+                    '&:hover': {
+                      color: 'common.white',
+                    },
                   },
                   '& .MuiTabs-indicator': {
-                    backgroundColor: 'secondary.main',
-                    height: 3,
+                    display: 'none',
                   },
                 }}
               >
@@ -110,33 +113,25 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <Tab
                     key={link.href}
                     label={link.label}
-                    onClick={() => router.push(link.href)}
-                    component="div"
-                    sx={{ cursor: 'pointer' }}
+                    value={link.href}
                   />
                 ))}
                 {user?.role === 'ADMIN' && (
                   <Tab
                     label="Admin"
-                    onClick={() => router.push('/admin')}
-                    component="div"
-                    sx={{ cursor: 'pointer' }}
+                    value="/admin"
                   />
                 )}
                 {(user?.role === 'AGENT' || user?.role === 'UNDERWRITER' || user?.role === 'CLAIMS_OFFICER') && (
                   <Tab
                     label="Staff"
-                    onClick={() => router.push('/staff')}
-                    component="div"
-                    sx={{ cursor: 'pointer' }}
+                    value="/staff"
                   />
                 )}
                 {(user?.role === 'CLAIMS_OFFICER' || user?.role === 'ADMIN') && (
                   <Tab
                     label="Claims Officer"
-                    onClick={() => router.push('/claims-officer')}
-                    component="div"
-                    sx={{ cursor: 'pointer' }}
+                    value="/claims-officer"
                   />
                 )}
               </Tabs>
@@ -202,8 +197,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             ) : (
               <Button 
                 color="inherit" 
-                component={Link} 
-                href="/login" 
+                onClick={() => {
+                  window.location.href = '/login';
+                }}
                 sx={{ 
                   color: '#FFFFFF',
                   textTransform: 'none',
@@ -213,10 +209,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                     backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
                     color: '#FFFFFF',
                   },
+                  position: 'relative',
+                  zIndex: 10,
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
                 }}
               >
-            Login
-          </Button>
+                Login
+              </Button>
             )}
           </Stack>
         </Toolbar>

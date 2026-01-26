@@ -91,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
-    router.push('/login');
+    // Force full page reload to ensure clean state
+    window.location.href = '/login';
   };
 
   return (

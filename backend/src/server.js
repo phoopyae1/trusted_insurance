@@ -24,6 +24,7 @@ const paymentRoutes = require('./routes/payments');
 const invoiceRoutes = require('./routes/invoices');
 const auditLogRoutes = require('./routes/auditLogs');
 const integrationRoutes = require('./routes/integrations');
+const customerAgentRoutes = require('./routes/customeragent');
 
 const errorHandler = require('./middleware/errorHandler');
 
@@ -67,6 +68,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/customer-agent', customerAgentRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
