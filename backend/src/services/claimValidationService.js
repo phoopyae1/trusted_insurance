@@ -20,7 +20,7 @@ function validateClaim(policy, product, claimPayload) {
     }
     if (incident > policyEnd) {
       errors.push(`Incident date (${incidentDate}) is after policy end date (${policyEnd.toISOString().split('T')[0]}). The incident must occur during the policy period.`);
-    }
+  }
   }
 
   // Check claim type matches product type

@@ -396,58 +396,58 @@ router.post(
   })
 );
 
-// GET/POST endpoint to get customer profile
-router.get(
-  "/profile",
-  authenticate,
-  requireCustomer,
-  asyncHandler(async (req, res) => {
-    const authenticatedUserId = req.user.id;
+// // GET/POST endpoint to get customer profile
+// router.get(
+//   "/profile",
+//   authenticate,
+//   requireCustomer,
+//   asyncHandler(async (req, res) => {
+//     const authenticatedUserId = req.user.id;
 
-    // Get customer profile, create if it doesn't exist
-    let profile = await prisma.customerProfile.findUnique({
-      where: {
-        userId: authenticatedUserId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+//     // Get customer profile, create if it doesn't exist
+//     let profile = await prisma.customerProfile.findUnique({
+//       where: {
+//         userId: authenticatedUserId,
+//       },
+//       include: {
+//         user: {
+//           select: {
+//             id: true,
+//             name: true,
+//             email: true,
+//             role: true,
+//             createdAt: true,
+//           },
+//         },
+//       },
+//     });
 
-    // If profile doesn't exist, create an empty one
-    if (!profile) {
-      profile = await prisma.customerProfile.create({
-        data: {
-          userId: authenticatedUserId,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-    }
+//     // If profile doesn't exist, create an empty one
+//     if (!profile) {
+//       profile = await prisma.customerProfile.create({
+//         data: {
+//           userId: authenticatedUserId,
+//         },
+//         include: {
+//           user: {
+//             select: {
+//               id: true,
+//               name: true,
+//               email: true,
+//               role: true,
+//               createdAt: true,
+//             },
+//           },
+//         },
+//       });
+//     }
 
-    res.json({
-      success: true,
-      data: profile,
-    });
-  })
-);
+//     res.json({
+//       success: true,
+//       data: profile,
+//     });
+//   })
+// );
 
 // POST endpoint to get customer profile (alternative method)
 router.post(
@@ -502,202 +502,6 @@ router.post(
   })
 );
 
-// PUT/PATCH endpoint to update customer profile
-router.put(
-  "/profile",
-  authenticate,
-  requireCustomer,
-  asyncHandler(async (req, res) => {
-    const authenticatedUserId = req.user.id;
-    const { phone, address, dateOfBirth, kycDocs, dependents } = req.body;
 
-    // Build update data object (only include fields that are provided)
-    const updateData = {};
-
-    if (phone !== undefined) {
-      updateData.phone = phone || null;
-    }
-
-    if (address !== undefined) {
-      updateData.address = address || null;
-    }
-
-    if (dateOfBirth !== undefined) {
-      updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
-    }
-
-    if (kycDocs !== undefined) {
-      updateData.kycDocs = kycDocs || null;
-    }
-
-    if (dependents !== undefined) {
-      updateData.dependents = dependents || null;
-    }
-
-    // Check if profile exists, create if it doesn't
-    let profile = await prisma.customerProfile.findUnique({
-      where: {
-        userId: authenticatedUserId,
-      },
-    });
-
-    if (!profile) {
-      // Create profile with provided data
-      profile = await prisma.customerProfile.create({
-        data: {
-          userId: authenticatedUserId,
-          ...updateData,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-    } else {
-      // Update existing profile
-      profile = await prisma.customerProfile.update({
-        where: {
-          userId: authenticatedUserId,
-        },
-        data: updateData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-    }
-
-    // Log audit event
-    await logAudit({
-      actorId: authenticatedUserId,
-      action: "PROFILE_UPDATED",
-      entityType: "CustomerProfile",
-      entityId: profile.id.toString(),
-      metadata: {
-        userId: authenticatedUserId,
-        updatedFields: Object.keys(updateData),
-      },
-    });
-
-    res.json({
-      success: true,
-      data: profile,
-      message: "Profile updated successfully",
-    });
-  })
-);
-
-// PATCH endpoint to update customer profile (alternative method)
-router.patch(
-  "/profile",
-  authenticate,
-  requireCustomer,
-  asyncHandler(async (req, res) => {
-    const authenticatedUserId = req.user.id;
-    const { phone, address, dateOfBirth, kycDocs, dependents } = req.body;
-
-    // Build update data object (only include fields that are provided)
-    const updateData = {};
-
-    if (phone !== undefined) {
-      updateData.phone = phone || null;
-    }
-
-    if (address !== undefined) {
-      updateData.address = address || null;
-    }
-
-    if (dateOfBirth !== undefined) {
-      updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
-    }
-
-    if (kycDocs !== undefined) {
-      updateData.kycDocs = kycDocs || null;
-    }
-
-    if (dependents !== undefined) {
-      updateData.dependents = dependents || null;
-    }
-
-    // Check if profile exists, create if it doesn't
-    let profile = await prisma.customerProfile.findUnique({
-      where: {
-        userId: authenticatedUserId,
-      },
-    });
-
-    if (!profile) {
-      // Create profile with provided data
-      profile = await prisma.customerProfile.create({
-        data: {
-          userId: authenticatedUserId,
-          ...updateData,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-    } else {
-      // Update existing profile
-      profile = await prisma.customerProfile.update({
-        where: {
-          userId: authenticatedUserId,
-        },
-        data: updateData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-    }
-
-    // Log audit event
-    await logAudit({
-      actorId: authenticatedUserId,
-      action: "PROFILE_UPDATED",
-      entityType: "CustomerProfile",
-      entityId: profile.id.toString(),
-      metadata: {
-        userId: authenticatedUserId,
-        updatedFields: Object.keys(updateData),
-      },
-    });
-
-    res.json({
-      success: true,
-      data: profile,
-      message: "Profile updated successfully",
-    });
-  })
-);
 
 module.exports = router;
