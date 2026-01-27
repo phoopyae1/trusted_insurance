@@ -502,6 +502,23 @@ router.post(
   })
 );
 
+// POST endpoint to get available products (e.g., Motor Protect, Health Shield, Life Secure)
+router.post(
+  "/products",
+  authenticate,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    // Get all available products
+    const products = await prisma.product.findMany({
+      orderBy: { name: "asc" },
+    });
 
+    res.json({
+      success: true,
+      data: products,
+      count: products.length,
+    });
+  })
+);
 
 module.exports = router;

@@ -5,25 +5,49 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { validateRequired } = require('../utils/validation');
 
 let Integration;
+let mongoose;
 try {
   Integration = require('../models/Integration');
+  const mongoConfig = require('../config/mongodb');
+  mongoose = mongoConfig.mongoose;
 } catch (error) {
   console.warn('⚠️ Integration model not available - MongoDB not configured');
+  console.warn('   Error:', error.message);
+}
+
+// Helper function to check MongoDB availability
+function checkMongoDB(res) {
+  if (!Integration || !mongoose) {
+    res.status(503).json({
+      success: false,
+      error: {
+        message: 'MongoDB not configured. Please install mongoose and ensure MongoDB is running: npm install mongoose',
+        code: 'SERVICE_UNAVAILABLE',
+      },
+    });
+    return false;
+  }
+
+  // Check if MongoDB is connected (readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting)
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({
+      success: false,
+      error: {
+        message: 'MongoDB is not connected. Please check your MongoDB connection and MONGODB_URI environment variable.',
+        code: 'SERVICE_UNAVAILABLE',
+      },
+    });
+    return false;
+  }
+
+  return true;
 }
 
 // Get token and iframe from integration (for Atenxion)
 router.get(
   '/token',
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
     const integration = await Integration.findOne({ isActive: true }).sort({ updatedAt: -1 });
     if (!integration) {
       return res.status(404).json({
@@ -46,15 +70,7 @@ router.get(
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
     const integrations = await Integration.find({}).sort({ createdAt: -1 });
     res.json({
       success: true,
@@ -68,15 +84,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
     const integration = await Integration.findById(req.params.id);
     if (!integration) {
       return res.status(404).json({
@@ -98,15 +106,7 @@ router.get(
 router.post(
   '/',
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
 
     const { contextKey, scriptTag } = req.body;
 
@@ -165,15 +165,7 @@ router.put(
   authenticate,
   authorize(['ADMIN', 'AGENT']),
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
     const integration = await Integration.findById(req.params.id);
     if (!integration) {
       return res.status(404).json({
@@ -221,15 +213,7 @@ router.delete(
   authenticate,
   authorize(['ADMIN']),
   asyncHandler(async (req, res) => {
-    if (!Integration) {
-      return res.status(503).json({
-        success: false,
-        error: {
-          message: 'MongoDB not configured. Please install mongoose: npm install mongoose',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-      });
-    }
+    if (!checkMongoDB(res)) return;
     const integration = await Integration.findByIdAndDelete(req.params.id);
     if (!integration) {
       return res.status(404).json({
