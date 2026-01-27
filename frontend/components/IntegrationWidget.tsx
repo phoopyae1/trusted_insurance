@@ -7,9 +7,8 @@ import { integrationsApi, Integration } from '../lib/api/integrations';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function IntegrationWidget() {
-  const { user, isAuthenticated } = useAuth();
-  console.log(user);
-  console.log(isAuthenticated);
+  const { user, isAuthenticated, loading } = useAuth();
+  
   const [processedIframes, setProcessedIframes] = useState<Array<{
     integration: Integration;
     src: string;
@@ -18,10 +17,10 @@ export default function IntegrationWidget() {
     loading?: string | null;
   }>>([]);
 
-  // Only load for CUSTOMER role
-  const shouldLoad = isAuthenticated && user?.role === 'CUSTOMER';
+  // Only load for CUSTOMER role (wait for auth to load first)
+  const shouldLoad = !loading && isAuthenticated && user?.role === 'CUSTOMER';
 
-  // Fetch integrations
+  // Fetch integrations (all hooks must be called before any conditional returns)
   const { data: integrations = [] } = useQuery({
     queryKey: ['integrations'],
     queryFn: integrationsApi.getAll,

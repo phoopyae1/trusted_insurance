@@ -37,8 +37,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Redirect to dashboard after successful login
-      window.location.href = '/dashboard';
+      // Redirect to dashboard after successful login (no page refresh)
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
       setLoading(false);

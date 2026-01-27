@@ -87,7 +87,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Tabs
                 value={pathname}
                 onChange={(e, newValue) => {
-                  window.location.href = newValue;
+                  router.push(newValue);
                 }}
                 sx={{
                   '& .MuiTab-root': {
