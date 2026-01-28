@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../prisma');
 const { logAudit } = require('../services/auditLogService');
+const { logoutAtenxionUser } = require('../services/atenxionTransactionService');
 const router = express.Router();
 
 const ACCESS_TOKEN_TTL = '1d';
@@ -144,10 +145,57 @@ router.post('/reset-password', async (req, res) => {
 
 router.post('/logout', async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, userId: bodyUserId } = req.body;
+    let userId = null;
+    let userEmail = null;
+
+    // Try to authenticate user if token is provided (optional for logout)
+    try {
+      const header = req.headers.authorization;
+      if (header) {
+        const parts = header.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer' && parts[1]) {
+          const decoded = jwt.verify(parts[1], process.env.JWT_SECRET);
+          userId = decoded.id;
+          userEmail = decoded.email;
+        }
+      }
+    } catch (err) {
+      // Token is invalid or expired - that's okay for logout
+      // We'll still process the logout without Atenxion call
+    }
+
+    // Use userId from body if provided and no authenticated user
+    if (!userId && bodyUserId) {
+      userId = bodyUserId;
+    }
+
+    // Revoke refresh token if provided
     if (refreshToken) {
       await prisma.refreshToken.updateMany({ where: { token: refreshToken }, data: { revokedAt: new Date() } });
     }
+
+    // Logout from Atenxion if user ID is available
+    if (userId) {
+      logoutAtenxionUser(userId).catch(err => {
+        console.error('Failed to logout from Atenxion:', err);
+        // Don't fail the logout if Atenxion logout fails
+      });
+
+      // Log audit event if we have authenticated user info
+      if (userEmail) {
+        await logAudit({
+          actorId: userId,
+          action: 'USER_LOGOUT',
+          entityType: 'User',
+          entityId: userId,
+          metadata: { email: userEmail }
+        }).catch(err => {
+          console.error('Failed to log audit event:', err);
+        });
+      }
+    }
+
     return res.json({ message: 'Logged out' });
   } catch (err) {
     console.error(err);

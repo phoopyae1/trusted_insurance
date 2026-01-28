@@ -3,6 +3,7 @@ const prisma = require('../prisma');
 const { authenticate, authorize } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { logAudit } = require('../services/auditLogService');
+const { recordAtenxionTransaction } = require('../services/atenxionTransactionService');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const { validateRequired } = require('../utils/validation');
 const router = express.Router();
@@ -75,6 +76,11 @@ router.post(
       entityType: 'Policy',
       entityId: policy.id,
       metadata: { policyNumber: policy.policyNumber }
+    });
+
+    // Record Atenxion transaction when customer buys product (policy created)
+    recordAtenxionTransaction(policy.userId, 'POLICY_PURCHASED').catch(err => {
+      console.error('Failed to record Atenxion transaction for policy purchase:', err);
     });
 
     res.status(201).json({ success: true, data: policy });
@@ -162,6 +168,11 @@ router.post(
         entityType: 'Policy',
         entityId: policy.id,
         metadata: { policyNumber: policy.policyNumber, quoteId: quote.id }
+      });
+
+      // Record Atenxion transaction when customer buys product (policy auto-created)
+      recordAtenxionTransaction(policy.userId, 'POLICY_PURCHASED').catch(err => {
+        console.error('Failed to record Atenxion transaction for policy purchase:', err);
       });
 
       createdPolicies.push(policy);

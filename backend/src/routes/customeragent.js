@@ -11,6 +11,7 @@ const { validateRequired, validateNumber } = require("../utils/validation");
 const { calculatePremium } = require("../services/premiumService");
 const { logAudit } = require("../services/auditLogService");
 const { validateClaim } = require("../services/claimValidationService");
+const { recordAtenxionTransaction } = require("../services/atenxionTransactionService");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -386,6 +387,11 @@ router.post(
         claimType: claim.claimType,
         userId: claimUserId,
       },
+    });
+
+    // Record Atenxion transaction when claim is submitted
+    recordAtenxionTransaction(claimUserId, 'CLAIM_SUBMITTED').catch(err => {
+      console.error('Failed to record Atenxion transaction for claim submission:', err);
     });
 
     res.status(201).json({

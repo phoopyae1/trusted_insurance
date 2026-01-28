@@ -6,6 +6,7 @@ const { NotFoundError, ValidationError } = require('../utils/errors');
 const { validateRequired, validateNumber } = require('../utils/validation');
 const { calculatePremium } = require('../services/premiumService');
 const { logAudit } = require('../services/auditLogService');
+const { recordAtenxionTransaction } = require('../services/atenxionTransactionService');
 const router = express.Router();
 
 const STAFF_ROLES = ['ADMIN', 'AGENT', 'UNDERWRITER', 'CLAIMS_OFFICER'];
@@ -105,6 +106,13 @@ router.patch(
       data: { status },
       include: { product: true, user: true, policy: true }
     });
+
+    // Record Atenxion transaction when quote is approved (customer buys product)
+    if (status === 'APPROVED') {
+      recordAtenxionTransaction(quote.userId, 'POLICY_PURCHASED').catch(err => {
+        console.error('Failed to record Atenxion transaction for quote approval:', err);
+      });
+    }
 
     res.json({ success: true, data: updatedQuote });
   })

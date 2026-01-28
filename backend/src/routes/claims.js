@@ -7,6 +7,7 @@ const { NotFoundError, ValidationError } = require('../utils/errors');
 const { validateRequired, validateNumber } = require('../utils/validation');
 const { validateClaim } = require('../services/claimValidationService');
 const { logAudit } = require('../services/auditLogService');
+const { recordAtenxionTransaction } = require('../services/atenxionTransactionService');
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
@@ -113,6 +114,11 @@ router.post(
       entityType: 'Claim',
       entityId: claim.id,
       metadata: { amount: claim.amount },
+    });
+
+    // Record Atenxion transaction when claim is submitted
+    recordAtenxionTransaction(claim.userId, 'CLAIM_SUBMITTED').catch(err => {
+      console.error('Failed to record Atenxion transaction for claim submission:', err);
     });
 
     res.status(201).json({ success: true, data: claim });
@@ -233,6 +239,13 @@ router.patch(
         deductible: updatedClaim.deductible,
       },
     });
+
+    // Record Atenxion transaction when claim is approved or partially approved
+    if (status === 'APPROVED' || status === 'PARTIALLY_APPROVED') {
+      recordAtenxionTransaction(claim.userId, 'CLAIM_APPROVED').catch(err => {
+        console.error('Failed to record Atenxion transaction for claim approval:', err);
+      });
+    }
 
     res.json({ success: true, data: updatedClaim });
   })

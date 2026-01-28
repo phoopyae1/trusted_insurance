@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { integrationsApi, Integration } from '../lib/api/integrations';
@@ -18,7 +18,10 @@ export default function IntegrationWidget() {
   }>>([]);
 
   // Only load for CUSTOMER role (wait for auth to load first)
-  const shouldLoad = !loading && isAuthenticated && user?.role === 'CUSTOMER';
+  // Memoize to prevent unnecessary re-renders
+  const shouldLoad = useMemo(() => {
+    return !loading && isAuthenticated && user?.role === 'CUSTOMER';
+  }, [loading, isAuthenticated, user?.role]);
 
   // Fetch integrations (all hooks must be called before any conditional returns)
   const { data: integrations = [] } = useQuery({
@@ -106,7 +109,11 @@ export default function IntegrationWidget() {
   // Process iframe integrations
   useEffect(() => {
     if (!shouldLoad || !integrations || integrations.length === 0) {
-      setProcessedIframes([]);
+      setProcessedIframes((prev) => {
+        // Only update if there's a change to prevent infinite loops
+        if (prev.length === 0) return prev;
+        return [];
+      });
       return;
     }
 
@@ -129,15 +136,16 @@ export default function IntegrationWidget() {
         let sanitizedSrc = srcAttr.trim();
         
         // Inject userId into iframe URL if user is logged in
-        if (user?.id) {
+        const userId = user?.id;
+        if (userId) {
           try {
             const url = new URL(sanitizedSrc, window.location.origin);
-            url.searchParams.set('userId', String(user.id));
+            url.searchParams.set('userId', String(userId));
             sanitizedSrc = url.toString();
           } catch {
             if (!sanitizedSrc.includes('userId=')) {
               const separator = sanitizedSrc.includes('?') ? '&' : '?';
-              sanitizedSrc = `${sanitizedSrc}${separator}userId=${String(user.id)}`;
+              sanitizedSrc = `${sanitizedSrc}${separator}userId=${String(userId)}`;
             }
           }
         }
@@ -158,7 +166,31 @@ export default function IntegrationWidget() {
         loading?: string | null;
       }>;
 
-    setProcessedIframes(processed);
+    // Only update state if the processed iframes actually changed
+    setProcessedIframes((prev) => {
+      // Compare by checking if lengths match and all IDs match
+      if (prev.length !== processed.length) {
+        return processed;
+      }
+      
+      const prevIds = prev.map(p => p.integration._id).sort().join(',');
+      const newIds = processed.map(p => p.integration._id).sort().join(',');
+      
+      if (prevIds !== newIds) {
+        return processed;
+      }
+      
+      // Check if any src changed
+      const prevSrcs = prev.map(p => p.src).sort().join('|||');
+      const newSrcs = processed.map(p => p.src).sort().join('|||');
+      
+      if (prevSrcs !== newSrcs) {
+        return processed;
+      }
+      
+      // No changes, return previous state to prevent re-render
+      return prev;
+    });
   }, [integrations, user?.id, shouldLoad]);
 
   // Don't render anything if not a customer or no iframes found
