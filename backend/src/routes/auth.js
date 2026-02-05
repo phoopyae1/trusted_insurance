@@ -84,23 +84,65 @@ router.post('/login', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(400).json({ message: 'Missing refresh token' });
+    if (!refreshToken) {
+      return res.status(400).json({ 
+        success: false,
+        error: {
+          message: 'Missing refresh token',
+          code: 'MISSING_REFRESH_TOKEN'
+        }
+      });
+    }
 
-    const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken }, include: { user: true } });
-    if (!stored || stored.revokedAt) return res.status(401).json({ message: 'Invalid refresh token' });
-    if (stored.expiresAt < new Date()) return res.status(401).json({ message: 'Refresh token expired' });
+    const stored = await prisma.refreshToken.findUnique({ 
+      where: { token: refreshToken }, 
+      include: { user: true } 
+    });
+    
+    if (!stored || stored.revokedAt) {
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          message: 'Invalid or revoked refresh token',
+          code: 'INVALID_REFRESH_TOKEN'
+        }
+      });
+    }
+    
+    if (stored.expiresAt < new Date()) {
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          message: 'Refresh token has expired. Please log in again.',
+          code: 'REFRESH_TOKEN_EXPIRED'
+        }
+      });
+    }
 
+    // Revoke the old refresh token
     await prisma.refreshToken.update({
       where: { id: stored.id },
       data: { revokedAt: new Date() }
     });
 
+    // Create new tokens
     const newRefreshToken = await createRefreshToken(stored.userId);
     const token = createAccessToken(stored.user);
-    return res.json({ token, refreshToken: newRefreshToken });
+    
+    return res.json({ 
+      success: true,
+      token, 
+      refreshToken: newRefreshToken 
+    });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Token refresh failed' });
+    console.error('Token refresh error:', err);
+    return res.status(500).json({ 
+      success: false,
+      error: {
+        message: 'Token refresh failed',
+        code: 'REFRESH_FAILED'
+      }
+    });
   }
 });
 

@@ -79,7 +79,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               flexGrow: 1,
             }}
           >
-            Trusted Insurance
+            Brillar Insurance
           </Typography>
 
           <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>

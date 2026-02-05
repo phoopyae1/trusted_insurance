@@ -5,7 +5,7 @@ import Providers from './providers';
 import React from 'react';
 
 export const metadata = {
-  title: 'Trusted Insurance',
+  title: 'Brillar Insurance',
   description: 'Modern insurance experience'
 };
 

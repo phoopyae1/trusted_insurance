@@ -23,7 +23,8 @@ router.post(
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
-    // Only show quotes for the authenticated customer
+    // List all quotes that the authenticated customer has requested/bought
+    // Only shows quotes belonging to the authenticated customer
     const where = {
       userId: req.user.id,
     };
@@ -305,6 +306,9 @@ router.post(
     validateRequired(req.body, ["policyNumber", "claimType", "amount", "incidentDate", "description"]);
     const { policyNumber, userId, claimType, amount, incidentDate, description } = req.body;
 
+    // Normalize claimType to uppercase to accept lowercase input (e.g., "motor" -> "MOTOR")
+    const normalizedClaimType = claimType.toUpperCase();
+
     // Use userId from request body if provided, otherwise use authenticated user's ID
     const claimUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
 
@@ -326,7 +330,7 @@ router.post(
 
     // Validate claim using the validation service
     const errors = validateClaim(policy, policy.product, {
-      claimType,
+      claimType: normalizedClaimType,
       amount: validateNumber(amount, "Amount"),
       incidentDate,
       description,
@@ -351,7 +355,7 @@ router.post(
       data: {
         policyId: policy.id,
         userId: claimUserId,
-        claimType,
+        claimType: normalizedClaimType,
         amount: Number(amount),
         incidentDate: new Date(incidentDate),
         description,

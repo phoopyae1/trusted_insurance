@@ -36,35 +36,48 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      // Handle token expiration - try to refresh
-      if (response.status === 401 && data.error?.code === 'TOKEN_EXPIRED') {
+      // Handle token expiration or any 401 error - try to refresh
+      if (response.status === 401) {
         const refreshed = await this.refreshToken();
         if (refreshed) {
           // Retry the original request with new token
-          defaultHeaders['Authorization'] = `Bearer ${this.getToken()}`;
-          const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
-            method,
-            headers: defaultHeaders,
-            body: body ? JSON.stringify(body) : undefined,
-          });
-          const retryData = await retryResponse.json();
-          if (!retryResponse.ok) {
-            throw new ApiError(
-              retryData.error?.message || 'An error occurred',
-              retryResponse.status,
-              retryData.error?.code
-            );
+          const newToken = this.getToken();
+          if (newToken) {
+            defaultHeaders['Authorization'] = `Bearer ${newToken}`;
+            const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
+              method,
+              headers: defaultHeaders,
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            const retryData = await retryResponse.json();
+            if (!retryResponse.ok) {
+              // If retry still fails, clear auth and redirect
+              if (retryResponse.status === 401) {
+                this.clearAuth();
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/login';
+                }
+              }
+              throw new ApiError(
+                retryData.error?.message || 'An error occurred',
+                retryResponse.status,
+                retryData.error?.code
+              );
+            }
+            return retryData.data || retryData;
           }
-          return retryData.data || retryData;
         }
-      }
-      
-      // If unauthorized and not token expired, clear token and redirect to login
-      if (response.status === 401) {
+        
+        // If refresh failed or no refresh token, clear auth and redirect to login
         this.clearAuth();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
+        throw new ApiError(
+          'Your session has expired. Please log in again.',
+          response.status,
+          'SESSION_EXPIRED'
+        );
       }
       
       throw new ApiError(
@@ -81,6 +94,7 @@ class ApiClient {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
+        console.log('No refresh token available');
         return false;
       }
 
@@ -93,6 +107,8 @@ class ApiClient {
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.log('Token refresh failed:', errorData.message || 'Refresh token invalid or expired');
         return false;
       }
 
@@ -102,11 +118,13 @@ class ApiClient {
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
+        console.log('Token refreshed successfully');
         return true;
       }
+      console.log('Invalid refresh response format');
       return false;
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error('Token refresh error:', error);
       return false;
     }
   }

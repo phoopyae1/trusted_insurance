@@ -12,20 +12,20 @@ import {
 
 const highlightCards = [
   {
-    title: 'Auto insurance',
-    description: 'Build coverage with clear pricing, roadside support, and flexible deductibles.',
+    title: 'Motor Protect',
+    description: 'Comprehensive vehicle protection with clear pricing, roadside assistance, and flexible deductibles.',
     icon: AutoIcon,
     number: '01',
   },
   {
-    title: 'Health insurance',
-    description: 'Access network insights, wellness benefits, and fast claims from any device.',
+    title: 'Health Shield',
+    description: 'Health coverage that supports hospital visits, treatment costs, and fast digital claims from any device.',
     icon: HealthIcon,
     number: '02',
   },
   {
-    title: 'Home insurance',
-    description: 'Protect property and valuables with renewal reminders and damage support.',
+    title: 'Life Secure',
+    description: 'Life insurance focused on long‑term family protection, predictable premiums, and dependable payouts.',
     icon: HomeIcon,
     number: '03',
   },
