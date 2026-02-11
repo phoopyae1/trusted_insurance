@@ -52,8 +52,15 @@ export default function DashboardPage() {
   });
 
   const { data: claims = [], isLoading: claimsLoading } = useQuery({
-    queryKey: ['claims'],
-    queryFn: () => claimsApi.getAll(),
+    queryKey: ['claims', user?.role],
+    queryFn: () => {
+      // Use customer-specific endpoint for customers
+      if (user?.role === 'CUSTOMER') {
+        return claimsApi.getCustomerClaims();
+      }
+      // Use regular endpoint for staff/admin
+      return claimsApi.getAll();
+    },
     enabled: !!user,
   });
 

@@ -35,9 +35,17 @@ export default function ClaimsPage() {
   });
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' | 'info' } | null>(null);
 
+  const { user } = useAuth();
   const { data: claims = [], isLoading, refetch } = useQuery({
-    queryKey: ['claims'],
-    queryFn: () => claimsApi.getAll(),
+    queryKey: ['claims', user?.role],
+    queryFn: () => {
+      // Use customer-specific endpoint for customers
+      if (user?.role === 'CUSTOMER') {
+        return claimsApi.getCustomerClaims();
+      }
+      // Use regular endpoint for staff/admin
+      return claimsApi.getAll();
+    },
     enabled: isAuthenticated,
     refetchOnWindowFocus: true,
   });
@@ -53,6 +61,23 @@ export default function ClaimsPage() {
       if (!isAuthenticated) {
         throw new Error('Please log in to submit a claim');
       }
+      
+      // For customers, use the customer-specific endpoint with policyNumber
+      if (user?.role === 'CUSTOMER') {
+        const selectedPolicy = policies.find(p => p.id.toString() === values.policyId);
+        if (!selectedPolicy || !selectedPolicy.policyNumber) {
+          throw new Error('Selected policy not found or missing policy number');
+        }
+        return claimsApi.submitCustomerClaim({
+          policyNumber: selectedPolicy.policyNumber,
+          claimType: values.claimType,
+          amount: Number(values.amount),
+          incidentDate: values.incidentDate,
+          description: values.description,
+        });
+      }
+      
+      // For staff/admin, use the regular endpoint with policyId
       return claimsApi.create({
         policyId: Number(values.policyId),
         claimType: values.claimType,
@@ -329,6 +354,11 @@ export default function ClaimsPage() {
                   <MenuItem value="LIFE">Life</MenuItem>
                   <MenuItem value="MOTOR">Motor</MenuItem>
                   <MenuItem value="TRAVEL">Travel</MenuItem>
+                  <MenuItem value="FIRE">Fire</MenuItem>
+                  <MenuItem value="PROPERTY">Property</MenuItem>
+                  <MenuItem value="HOME">Home</MenuItem>
+                  <MenuItem value="BUSINESS">Business</MenuItem>
+                  <MenuItem value="LIABILITY">Liability</MenuItem>
                 </Select>
                 {form.policyId && (
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>

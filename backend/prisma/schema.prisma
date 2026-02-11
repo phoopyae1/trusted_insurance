@@ -20,6 +20,11 @@ enum ProductType {
   LIFE
   MOTOR
   TRAVEL
+  FIRE
+  PROPERTY
+  BUSINESS
+  HOME
+  LIABILITY
 }
 
 enum QuoteStatus {

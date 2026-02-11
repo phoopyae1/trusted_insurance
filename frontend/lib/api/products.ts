@@ -49,4 +49,8 @@ export const productsApi = {
   delete: async (id: number): Promise<void> => {
     return apiClient.delete(`/api/products/${id}`);
   },
+
+  seed: async (): Promise<{ success: boolean; message: string; data: Product[]; count: number }> => {
+    return apiClient.post<any>('/api/products/seed', {});
+  },
 };

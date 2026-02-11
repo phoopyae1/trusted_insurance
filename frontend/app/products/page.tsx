@@ -1,6 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Paper,
@@ -14,12 +15,18 @@ import {
   CardContent,
   CardActions,
   Button,
+  Snackbar,
 } from '@mui/material';
 import {
   HealthAndSafety as HealthIcon,
   DirectionsCar as MotorIcon,
   Favorite as LifeIcon,
   FlightTakeoff as TravelIcon,
+  LocalFireDepartment as FireIcon,
+  AccountBalance as PropertyIcon,
+  Business as BusinessIcon,
+  Home as HomeIcon,
+  Gavel as LiabilityIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { productsApi, Product } from '../../lib/api/products';
@@ -34,6 +41,16 @@ const getProductIcon = (type: string) => {
       return <LifeIcon sx={{ fontSize: 48 }} />;
     case 'TRAVEL':
       return <TravelIcon sx={{ fontSize: 48 }} />;
+    case 'FIRE':
+      return <FireIcon sx={{ fontSize: 48 }} />;
+    case 'PROPERTY':
+      return <PropertyIcon sx={{ fontSize: 48 }} />;
+    case 'BUSINESS':
+      return <BusinessIcon sx={{ fontSize: 48 }} />;
+    case 'HOME':
+      return <HomeIcon sx={{ fontSize: 48 }} />;
+    case 'LIABILITY':
+      return <LiabilityIcon sx={{ fontSize: 48 }} />;
     default:
       return <HealthIcon sx={{ fontSize: 48 }} />;
   }
@@ -49,6 +66,16 @@ const getProductColor = (type: string) => {
       return { main: '#EF4444', light: 'rgba(239, 68, 68, 0.1)' };
     case 'TRAVEL':
       return { main: '#8B5CF6', light: 'rgba(139, 92, 246, 0.1)' };
+    case 'FIRE':
+      return { main: '#F59E0B', light: 'rgba(245, 158, 11, 0.1)' };
+    case 'PROPERTY':
+      return { main: '#6366F1', light: 'rgba(99, 102, 241, 0.1)' };
+    case 'BUSINESS':
+      return { main: '#EC4899', light: 'rgba(236, 72, 153, 0.1)' };
+    case 'HOME':
+      return { main: '#14B8A6', light: 'rgba(20, 184, 166, 0.1)' };
+    case 'LIABILITY':
+      return { main: '#F97316', light: 'rgba(249, 115, 22, 0.1)' };
     default:
       return { main: '#6B7280', light: 'rgba(107, 114, 128, 0.1)' };
   }
@@ -64,6 +91,16 @@ const getProductTypeLabel = (type: string) => {
       return 'Life';
     case 'TRAVEL':
       return 'Travel';
+    case 'FIRE':
+      return 'Fire';
+    case 'PROPERTY':
+      return 'Property';
+    case 'BUSINESS':
+      return 'Business';
+    case 'HOME':
+      return 'Home';
+    case 'LIABILITY':
+      return 'Liability';
     default:
       return type;
   }
@@ -71,9 +108,35 @@ const getProductTypeLabel = (type: string) => {
 
 export default function ProductsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products'],
     queryFn: () => productsApi.getAll(),
+  });
+
+  const seedProductsMutation = useMutation({
+    mutationFn: () => productsApi.seed(),
+    onSuccess: (data) => {
+      setSnackbar({
+        open: true,
+        message: data.message || `Successfully restored ${data.count} products!`,
+        severity: 'success',
+      });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to restore products. Please contact an administrator.',
+        severity: 'error',
+      });
+    },
   });
 
   const handleGetQuote = (productId: number) => {
@@ -120,7 +183,7 @@ export default function ProductsPage() {
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap">
             <Chip
-              label="Auto"
+              label="Motor"
               sx={{
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 color: '#3B82F6',
@@ -146,7 +209,20 @@ export default function ProductsPage() {
               }}
             />
             <Chip
-              label="Home"
+              label="Life"
+              sx={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: '#EF4444',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                },
+              }}
+            />
+            <Chip
+              label="Travel"
               sx={{
                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
                 color: '#8B5CF6',
@@ -158,14 +234,86 @@ export default function ProductsPage() {
                 },
               }}
             />
+            <Chip
+              label="Fire"
+              sx={{
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                color: '#F59E0B',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                },
+              }}
+            />
+            <Chip
+              label="Property"
+              sx={{
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                color: '#6366F1',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                },
+              }}
+            />
+            <Chip
+              label="Home"
+              sx={{
+                backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                color: '#14B8A6',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(20, 184, 166, 0.2)',
+                },
+              }}
+            />
+            <Chip
+              label="Business"
+              sx={{
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                color: '#EC4899',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                },
+              }}
+            />
+            <Chip
+              label="Liability"
+              sx={{
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                color: '#F97316',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                },
+              }}
+            />
           </Stack>
         </Stack>
       </Paper>
 
       <Box>
-        <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-          Available plans
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+            Available plans
+          </Typography>
+          {products && products.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {products.length} {products.length === 1 ? 'product' : 'products'} available
+            </Typography>
+          )}
+        </Stack>
         <Grid container spacing={3}>
           {products?.map((product: Product) => {
             const colors = getProductColor(product.type);
@@ -282,11 +430,40 @@ export default function ProductsPage() {
           >
             <Typography variant="h6" gutterBottom>
               No products available
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3 }}>
+              Check back later for new insurance products.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => seedProductsMutation.mutate()}
+              disabled={seedProductsMutation.isPending}
+              sx={{ borderRadius: 0, textTransform: 'none' }}
+            >
+              {seedProductsMutation.isPending ? 'Restoring Products...' : 'Restore All Products (9)'}
+            </Button>
+            <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
+              Click to restore all 9 insurance products to the database
       </Typography>
-            <Typography variant="body2">Check back later for new insurance products.</Typography>
           </Box>
         )}
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

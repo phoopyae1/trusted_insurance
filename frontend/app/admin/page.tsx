@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, TextField, Typography, Grid, Card, CardContent } from '@mui/material';
+import { Box, Button, Paper, Stack, TextField, Typography, Grid, Card, CardContent, Alert, Snackbar } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsApi, Product } from '../../lib/api/products';
 
 const columns: GridColDef<Product>[] = [
@@ -21,10 +21,35 @@ const columns: GridColDef<Product>[] = [
 
 export default function AdminPage() {
   const [form, setForm] = useState({ name: '', type: 'HEALTH', basePremium: '', description: '' });
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: () => productsApi.getAll(),
+  });
+
+  const seedProductsMutation = useMutation({
+    mutationFn: () => productsApi.seed(),
+    onSuccess: (data) => {
+      setSnackbar({
+        open: true,
+        message: data.message || `Successfully added ${data.count} products!`,
+        severity: 'success',
+      });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to seed products',
+        severity: 'error',
+      });
+    },
   });
 
   const createProduct = async () => {
@@ -59,9 +84,20 @@ export default function AdminPage() {
       </Paper>
 
       <Paper elevation={0} sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
-          Create New Product
-      </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h6" fontWeight={600}>
+            Create New Product
+          </Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => seedProductsMutation.mutate()}
+            disabled={seedProductsMutation.isPending}
+            sx={{ borderRadius: 0, textTransform: 'none' }}
+          >
+            {seedProductsMutation.isPending ? 'Seeding...' : 'Seed All Products (9)'}
+          </Button>
+        </Stack>
         <Stack spacing={2} direction={{ xs: 'column', sm: 'row' }}>
           <TextField
             label="Name"
@@ -110,6 +146,21 @@ export default function AdminPage() {
           )}
         </Box>
       </Paper>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

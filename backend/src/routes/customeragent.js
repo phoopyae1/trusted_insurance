@@ -111,7 +111,6 @@ router.post(
           message: "Vehicle value is required for motor insurance and must be greater than 0"
         });
       }
-      // Health-related fields are NOT required for MOTOR
     } else if (product.type === "LIFE") {
       // Life insurance requires health-related fields
       if (!formData.preExistingConditions || formData.preExistingConditions.trim() === "") {
@@ -129,6 +128,50 @@ router.post(
     } else if (product.type === "HEALTH") {
       // Health insurance - health fields are optional but recommended
       // Only age is required
+    } else if (product.type === "FIRE" || product.type === "PROPERTY" || product.type === "HOME") {
+      // Fire, Property, and Home insurance require propertyValue
+      if (!formData.propertyValue || Number(formData.propertyValue) <= 0) {
+        validationErrors.push({
+          field: "propertyValue",
+          message: `Property value is required for ${product.type.toLowerCase()} insurance and must be greater than 0`
+        });
+      }
+    } else if (product.type === "BUSINESS") {
+      // Business insurance requires business information
+      if (!formData.businessRevenue || Number(formData.businessRevenue) <= 0) {
+        validationErrors.push({
+          field: "businessRevenue",
+          message: "Business annual revenue is required for business insurance and must be greater than 0"
+        });
+      }
+      if (!formData.employeeCount || Number(formData.employeeCount) < 0) {
+        validationErrors.push({
+          field: "employeeCount",
+          message: "Number of employees is required for business insurance"
+        });
+      }
+    } else if (product.type === "LIABILITY") {
+      // Liability insurance requires business type
+      if (!formData.businessType || formData.businessType.trim() === "") {
+        validationErrors.push({
+          field: "businessType",
+          message: "Business type is required for liability insurance"
+        });
+      }
+    } else if (product.type === "TRAVEL") {
+      // Travel insurance requires trip information
+      if (!formData.destination || formData.destination.trim() === "") {
+        validationErrors.push({
+          field: "destination",
+          message: "Travel destination is required for travel insurance"
+        });
+      }
+      if (!formData.tripDuration || Number(formData.tripDuration) <= 0) {
+        validationErrors.push({
+          field: "tripDuration",
+          message: "Trip duration (in days) is required for travel insurance and must be greater than 0"
+        });
+      }
     }
 
     // Throw validation errors if any

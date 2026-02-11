@@ -8,6 +8,12 @@ import {
   Speed as SpeedIcon,
   Security as SecurityIcon,
   Phone as PhoneIcon,
+  FlightTakeoff as TravelIcon,
+  LocalFireDepartment as FireIcon,
+  Business as BusinessIcon,
+  AccountBalance as PropertyIcon,
+  Gavel as LiabilityIcon,
+  Favorite as LifeIcon,
 } from '@mui/icons-material';
 
 const highlightCards = [
@@ -26,8 +32,44 @@ const highlightCards = [
   {
     title: 'Life Secure',
     description: 'Life insurance focused on long‑term family protection, predictable premiums, and dependable payouts.',
-    icon: HomeIcon,
+    icon: LifeIcon,
     number: '03',
+  },
+  {
+    title: 'Travel Guard',
+    description: 'Travel insurance covering trip cancellation, medical emergencies abroad, and lost luggage protection.',
+    icon: TravelIcon,
+    number: '04',
+  },
+  {
+    title: 'Fire Shield',
+    description: 'Fire insurance protecting your property against fire damage, smoke damage, and related perils.',
+    icon: FireIcon,
+    number: '05',
+  },
+  {
+    title: 'Property Guard',
+    description: 'Property insurance covering buildings and contents against theft, vandalism, and natural disasters.',
+    icon: PropertyIcon,
+    number: '06',
+  },
+  {
+    title: 'Home Secure',
+    description: 'Homeowners insurance protecting your home, personal belongings, and providing liability coverage.',
+    icon: HomeIcon,
+    number: '07',
+  },
+  {
+    title: 'Business Protect',
+    description: 'Business insurance covering property, liability, business interruption, and equipment protection.',
+    icon: BusinessIcon,
+    number: '08',
+  },
+  {
+    title: 'Liability Shield',
+    description: 'General liability insurance protecting against claims of bodily injury, property damage, and personal injury.',
+    icon: LiabilityIcon,
+    number: '09',
   },
 ];
 
