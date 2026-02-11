@@ -45,6 +45,7 @@ const quoteSchema = z.object({
   smoker: z.boolean().optional(),
   vehicleValue: z.number().optional(),
   tripDuration: z.number().optional(),
+  destination: z.string().optional(),
   // Life insurance specific fields
   drinker: z.boolean().optional(),
   preExistingConditions: z.string().optional(),
@@ -59,6 +60,16 @@ const quoteSchema = z.object({
   accidentHistory: z.string().optional(),
   vehicleUsage: z.string().optional(),
   annualMileage: z.number().optional(),
+  // Property insurance fields
+  propertyValue: z.number().optional(),
+  propertyType: z.string().optional(),
+  propertyLocation: z.string().optional(),
+  yearBuilt: z.number().optional(),
+  // Business insurance fields
+  businessRevenue: z.number().optional(),
+  employeeCount: z.number().optional(),
+  businessType: z.string().optional(),
+  industry: z.string().optional(),
 }).superRefine((data, ctx) => {
   // Get product type from the form context (we'll pass it via metadata)
   // For now, we'll validate based on what's present
@@ -71,8 +82,19 @@ type QuoteFormValues = {
   smoker?: boolean;
   vehicleValue?: number;
   tripDuration?: number;
+  destination?: string;
   // Life insurance specific fields
   drinker?: boolean;
+  // Property insurance fields
+  propertyValue?: number;
+  propertyType?: string;
+  propertyLocation?: string;
+  yearBuilt?: number;
+  // Business insurance fields
+  businessRevenue?: number;
+  employeeCount?: number;
+  businessType?: string;
+  industry?: string;
   preExistingConditions?: string;
   familyHistory?: string;
   occupation?: string;
@@ -115,7 +137,16 @@ export default function QuotesPage() {
       smoker: false,
       vehicleValue: 0,
       tripDuration: 0,
+      destination: '',
       drinker: false,
+      propertyValue: 0,
+      propertyType: '',
+      propertyLocation: '',
+      yearBuilt: undefined,
+      businessRevenue: 0,
+      employeeCount: 0,
+      businessType: '',
+      industry: '',
       preExistingConditions: '',
       familyHistory: '',
       occupation: '',
@@ -215,12 +246,20 @@ export default function QuotesPage() {
         metadata.vehicleValue = values.vehicleValue;
       }
       
-      if (selectedProduct?.type === 'TRAVEL' && values.tripDuration) {
-        metadata.tripDuration = values.tripDuration;
+      if (selectedProduct?.type === 'TRAVEL') {
+        if (values.destination) {
+          metadata.destination = values.destination;
+        }
+        if (values.tripDuration) {
+          metadata.tripDuration = values.tripDuration;
+        }
       }
 
       // Health insurance specific fields
       if (selectedProduct?.type === 'HEALTH') {
+        if (values.drinker !== undefined) {
+          metadata.drinker = values.drinker;
+        }
         if (values.preExistingConditions) {
           metadata.preExistingConditions = values.preExistingConditions;
         }
@@ -273,6 +312,51 @@ export default function QuotesPage() {
         }
         if (values.annualMileage) {
           metadata.annualMileage = values.annualMileage;
+        }
+      }
+
+      // Property insurance fields (FIRE, PROPERTY, HOME)
+      if (selectedProduct?.type === 'FIRE' || selectedProduct?.type === 'PROPERTY' || selectedProduct?.type === 'HOME') {
+        if (values.propertyValue) {
+          metadata.propertyValue = values.propertyValue;
+        }
+        if (values.propertyType) {
+          metadata.propertyType = values.propertyType;
+        }
+        if (values.propertyLocation) {
+          metadata.propertyLocation = values.propertyLocation;
+        }
+        if (values.yearBuilt) {
+          metadata.yearBuilt = values.yearBuilt;
+        }
+      }
+
+      // Business insurance fields
+      if (selectedProduct?.type === 'BUSINESS') {
+        if (values.businessType) {
+          metadata.businessType = values.businessType;
+        }
+        if (values.businessRevenue) {
+          metadata.businessRevenue = values.businessRevenue;
+        }
+        if (values.employeeCount) {
+          metadata.employeeCount = values.employeeCount;
+        }
+        if (values.industry) {
+          metadata.industry = values.industry;
+        }
+      }
+
+      // Liability insurance fields
+      if (selectedProduct?.type === 'LIABILITY') {
+        if (values.businessType) {
+          metadata.businessType = values.businessType;
+        }
+        if (values.businessRevenue) {
+          metadata.businessRevenue = values.businessRevenue;
+        }
+        if (values.industry) {
+          metadata.industry = values.industry;
         }
       }
 
@@ -716,6 +800,21 @@ export default function QuotesPage() {
                   }
                   label="Smoker"
                 />
+                <FormControlLabel
+                  control={
+                    <Controller
+                      name="drinker"
+                      control={control}
+                      render={({ field }) => (
+                                <Checkbox 
+                                  checked={field.value || false} 
+                                  onChange={(e) => field.onChange(e.target.checked)} 
+                                />
+                      )}
+                    />
+                  }
+                  label="Regular drinker"
+                />
                         <Controller
                           name="preExistingConditions"
                           control={control}
@@ -1042,22 +1141,246 @@ export default function QuotesPage() {
                       </>
                     )}
                     {selectedProduct.type === 'TRAVEL' && (
-                <Controller
-                  name="tripDuration"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      label="Trip duration (days)"
-                      type="number"
-                            value={field.value || ''}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      error={Boolean(formState.errors.tripDuration)}
-                            helperText={formState.errors.tripDuration?.message || 'How many days will you be traveling?'}
-                            required
-                            inputProps={{ min: 1 }}
-                    />
-                  )}
-                />
+                      <>
+                        <Controller
+                          name="destination"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Destination"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.destination)}
+                              helperText={formState.errors.destination?.message || 'Where are you traveling to?'}
+                              required
+                              placeholder="e.g., Europe, Asia, United States"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="tripDuration"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Trip duration (days)"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              error={Boolean(formState.errors.tripDuration)}
+                              helperText={formState.errors.tripDuration?.message || 'How many days will you be traveling?'}
+                              required
+                              inputProps={{ min: 1 }}
+                            />
+                          )}
+                        />
+                        <FormControlLabel
+                          control={
+                            <Controller
+                              name="smoker"
+                              control={control}
+                              render={({ field }) => (
+                                <Checkbox 
+                                  checked={field.value || false} 
+                                  onChange={(e) => field.onChange(e.target.checked)} 
+                                />
+                              )}
+                            />
+                          }
+                          label="Smoker"
+                        />
+                      </>
+                    )}
+                    {(selectedProduct.type === 'FIRE' || selectedProduct.type === 'PROPERTY' || selectedProduct.type === 'HOME') && (
+                      <>
+                        <Controller
+                          name="propertyValue"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Property value ($)"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              error={Boolean(formState.errors.propertyValue)}
+                              helperText={formState.errors.propertyValue?.message || 'Estimated value of your property'}
+                              required
+                              inputProps={{ min: 0, step: 1000 }}
+                              placeholder="e.g., 500000"
+                            />
+                          )}
+                        />
+                        <FormControl fullWidth>
+                          <InputLabel id="property-type-label">Property type</InputLabel>
+                          <Controller
+                            name="propertyType"
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                labelId="property-type-label"
+                                label="Property type"
+                                value={field.value || ''}
+                                onChange={field.onChange}
+                              >
+                                <MenuItem value="">Select property type</MenuItem>
+                                <MenuItem value="SINGLE_FAMILY">Single family home</MenuItem>
+                                <MenuItem value="MULTI_FAMILY">Multi-family home</MenuItem>
+                                <MenuItem value="CONDO">Condominium</MenuItem>
+                                <MenuItem value="APARTMENT">Apartment</MenuItem>
+                                <MenuItem value="COMMERCIAL">Commercial property</MenuItem>
+                                <MenuItem value="INDUSTRIAL">Industrial property</MenuItem>
+                                <MenuItem value="OTHER">Other</MenuItem>
+                              </Select>
+                            )}
+                          />
+                        </FormControl>
+                        <Controller
+                          name="propertyLocation"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Property location"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.propertyLocation)}
+                              helperText={formState.errors.propertyLocation?.message || 'City and state/country where property is located'}
+                              placeholder="e.g., New York, NY or London, UK"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="yearBuilt"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Year built"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              error={Boolean(formState.errors.yearBuilt)}
+                              helperText={formState.errors.yearBuilt?.message || 'Year the property was built (optional)'}
+                              inputProps={{ min: 1800, max: new Date().getFullYear() }}
+                              placeholder="e.g., 2010"
+                            />
+                          )}
+                        />
+                      </>
+                    )}
+                    {selectedProduct.type === 'BUSINESS' && (
+                      <>
+                        <Controller
+                          name="businessType"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Business type"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.businessType)}
+                              helperText={formState.errors.businessType?.message || 'Type of business (e.g., Retail, Restaurant, Tech)'}
+                              required
+                              placeholder="e.g., Retail store, Restaurant, Software company"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="businessRevenue"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Annual business revenue ($)"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              error={Boolean(formState.errors.businessRevenue)}
+                              helperText={formState.errors.businessRevenue?.message || 'Annual revenue of your business'}
+                              required
+                              inputProps={{ min: 0, step: 1000 }}
+                              placeholder="e.g., 500000"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="employeeCount"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Number of employees"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              error={Boolean(formState.errors.employeeCount)}
+                              helperText={formState.errors.employeeCount?.message || 'Total number of employees'}
+                              required
+                              inputProps={{ min: 0 }}
+                              placeholder="e.g., 25"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="industry"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Industry"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.industry)}
+                              helperText={formState.errors.industry?.message || 'Industry sector (optional)'}
+                              placeholder="e.g., Technology, Healthcare, Retail, Manufacturing"
+                            />
+                          )}
+                        />
+                      </>
+                    )}
+                    {selectedProduct.type === 'LIABILITY' && (
+                      <>
+                        <Controller
+                          name="businessType"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Business type"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.businessType)}
+                              helperText={formState.errors.businessType?.message || 'Type of business'}
+                              required
+                              placeholder="e.g., Retail, Restaurant, Consulting"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="businessRevenue"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Annual business revenue ($)"
+                              type="number"
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              error={Boolean(formState.errors.businessRevenue)}
+                              helperText={formState.errors.businessRevenue?.message || 'Annual revenue of your business'}
+                              required
+                              inputProps={{ min: 0, step: 1000 }}
+                              placeholder="e.g., 500000"
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="industry"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              label="Industry"
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              error={Boolean(formState.errors.industry)}
+                              helperText={formState.errors.industry?.message || 'Industry sector (optional)'}
+                              placeholder="e.g., Technology, Healthcare, Retail"
+                            />
+                          )}
+                        />
+                      </>
                     )}
                   </>
                 )}

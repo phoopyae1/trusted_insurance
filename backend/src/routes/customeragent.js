@@ -128,6 +128,20 @@ router.post(
     } else if (product.type === "HEALTH") {
       // Health insurance - health fields are optional but recommended
       // Only age is required
+      // Smoker and drinker are optional but will affect premium calculation
+    } else if (product.type === "TRAVEL") {
+      if (!formData.destination || formData.destination.trim() === "") {
+        validationErrors.push({
+          field: "destination",
+          message: "Destination is required for travel insurance"
+        });
+      }
+      if (!formData.tripDuration || Number(formData.tripDuration) <= 0) {
+        validationErrors.push({
+          field: "tripDuration",
+          message: "Trip duration is required for travel insurance and must be greater than 0 days"
+        });
+      }
     } else if (product.type === "FIRE" || product.type === "PROPERTY" || product.type === "HOME") {
       // Fire, Property, and Home insurance require propertyValue
       if (!formData.propertyValue || Number(formData.propertyValue) <= 0) {
