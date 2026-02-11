@@ -72,23 +72,41 @@ router.post(
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
-    validateRequired(req.body, ["productName"]);
-    const { productName, userId, ...formData } = req.body;
+    // Accept either productId or productName, and either metadata object or flat form fields
+    const { productId, productName, userId, metadata: metadataObj, ...flatFormData } = req.body;
+    
+    // Validate that either productId or productName is provided
+    if (!productId && !productName) {
+      throw new ValidationError("Either productId or productName is required", [
+        { field: "productId", message: "Product ID or product name is required" }
+      ]);
+    }
+    
+    // Use metadata object if provided, otherwise use flat form data
+    const formData = metadataObj || flatFormData;
 
     // Use userId from request body if provided, otherwise use authenticated user's ID
     const quoteUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
 
-    // Validate product exists by name
-    const product = await prisma.product.findFirst({
-      where: { 
-        name: {
-          equals: productName,
-          mode: 'insensitive' // Case-insensitive search
-        }
-      },
-    });
+    // Find product by ID or name
+    let product = null;
+    if (productId) {
+      product = await prisma.product.findUnique({
+        where: { id: validateNumber(productId, "Product ID") }
+      });
+    } else if (productName) {
+      product = await prisma.product.findFirst({
+        where: { 
+          name: {
+            equals: productName,
+            mode: 'insensitive' // Case-insensitive search
+          }
+        },
+      });
+    }
+    
     if (!product) {
-      throw new NotFoundError(`Product with name "${productName}" not found`);
+      throw new NotFoundError(`Product not found. Please provide either productId or productName.`);
     }
 
     // Validate required fields based on product type
@@ -165,25 +183,17 @@ router.post(
         });
       }
     } else if (product.type === "LIABILITY") {
-      // Liability insurance requires business type
+      // Liability insurance requires business type and revenue
       if (!formData.businessType || formData.businessType.trim() === "") {
         validationErrors.push({
           field: "businessType",
           message: "Business type is required for liability insurance"
         });
       }
-    } else if (product.type === "TRAVEL") {
-      // Travel insurance requires trip information
-      if (!formData.destination || formData.destination.trim() === "") {
+      if (!formData.businessRevenue || Number(formData.businessRevenue) <= 0) {
         validationErrors.push({
-          field: "destination",
-          message: "Travel destination is required for travel insurance"
-        });
-      }
-      if (!formData.tripDuration || Number(formData.tripDuration) <= 0) {
-        validationErrors.push({
-          field: "tripDuration",
-          message: "Trip duration (in days) is required for travel insurance and must be greater than 0"
+          field: "businessRevenue",
+          message: "Business annual revenue is required for liability insurance and must be greater than 0"
         });
       }
     }
@@ -193,8 +203,9 @@ router.post(
       throw new ValidationError("Validation failed", validationErrors);
     }
 
-    // Build metadata object from form fields (exclude productName and userId)
-    const metadata = { ...formData };
+    // Build metadata object from form fields
+    // Use the formData we extracted earlier (already excludes productId, productName, userId, metadata)
+    const metadata = formData;
 
     // Calculate premium based on product and metadata
     const premium = calculatePremium(product.basePremium, metadata);
