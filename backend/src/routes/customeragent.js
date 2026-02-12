@@ -255,36 +255,30 @@ router.post(
   })
 );
 
-// POST endpoint to list claims for customers
+// List claims for the authenticated customer
 router.post(
   "/claims",
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
     // STRICT FILTERING: Only show claims for the authenticated customer
-    // Example: If user.id = 6, only return claims where userId = 6
     const authenticatedUserId = req.user.id;
-    
-    // Additional validation: Ensure req.user was set by authenticate middleware
+
+    // Extra safety: ensure userId is present
     if (!authenticatedUserId) {
       return res.status(401).json({
         success: false,
         error: {
-          message: 'Authentication failed. User ID not found in token.',
-          code: 'AUTHENTICATION_FAILED'
-        }
+          message: "Authentication failed. User ID not found in token.",
+          code: "AUTHENTICATION_FAILED",
+        },
       });
     }
 
-    // First, get all policy IDs that belong to this customer
-    // This ensures we only query claims for policies owned by the customer
+    // Get all policy IDs that belong to this customer
     const customerPolicies = await prisma.policy.findMany({
-      where: {
-        userId: authenticatedUserId,
-      },
-      select: {
-        id: true,
-      },
+      where: { userId: authenticatedUserId },
+      select: { id: true },
     });
 
     const customerPolicyIds = customerPolicies.map((p) => p.id);
@@ -298,27 +292,25 @@ router.post(
       });
     }
 
-    // Build where clause - ensure claim belongs to user AND policy belongs to user
+    // Base filter: only this user's claims for their policies
     const where = {
-      userId: authenticatedUserId, // Only claims belonging to this user (e.g., userId = 6)
-      policyId: {
-        in: customerPolicyIds, // Only claims for policies owned by this user
-      },
+      userId: authenticatedUserId,
+      policyId: { in: customerPolicyIds },
     };
 
     // Optional filters from request body
     if (req.body.status) {
-      where.status = req.body.status;
+      where.status = req.body.status; // e.g. "APPROVED"
     }
 
     if (req.body.claimType) {
-      where.claimType = req.body.claimType;
+      where.claimType = req.body.claimType; // e.g. "HEALTH"
     }
 
     if (req.body.policyId) {
       const policyId = Number(req.body.policyId);
-      
-      // Validate that the policyId belongs to the customer
+
+      // Ensure the policyId belongs to this customer
       if (!customerPolicyIds.includes(policyId)) {
         return res.status(403).json({
           success: false,
@@ -332,40 +324,27 @@ router.post(
       where.policyId = policyId;
     }
 
+    // Query claims
     const claims = await prisma.claim.findMany({
       where,
       include: {
-        policy: {
-          include: {
-            product: true,
-          },
-        },
+        policy: { include: { product: true } },
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true },
         },
         assessedByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Final security check: Ensure all returned claims belong to the authenticated user
-    // This is a defense-in-depth measure to prevent any data leakage
-    const filteredClaims = claims.filter((claim) => {
-      return (
+    // Final defense-in-depth check
+    const filteredClaims = claims.filter(
+      (claim) =>
         claim.userId === authenticatedUserId &&
         customerPolicyIds.includes(claim.policyId)
-      );
-    });
+    );
 
     res.json({
       success: true,
@@ -374,7 +353,6 @@ router.post(
     });
   })
 );
-
 // POST endpoint to submit/create new claims for customers
 router.post(
   "/claims/submit",
@@ -382,62 +360,65 @@ router.post(
   requireCustomer,
   upload.array("attachments"),
   asyncHandler(async (req, res) => {
+    // Required fields in body
     validateRequired(req.body, ["policyNumber", "claimType", "amount", "incidentDate", "description"]);
     const { policyNumber, userId, claimType, amount, incidentDate, description } = req.body;
 
-    // Normalize claimType to uppercase to accept lowercase input (e.g., "motor" -> "MOTOR")
+    // Normalize claimType to uppercase (e.g. "motor" -> "MOTOR")
     const normalizedClaimType = claimType.toUpperCase();
 
-    // Use userId from request body if provided, otherwise use authenticated user's ID
+    // Use userId from body if provided, otherwise use authenticated user's ID
     const claimUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
 
-    // If userId is provided in the body, it must match the authenticated user's ID
+    // If userId is provided, it must match the authenticated user
     if (userId) {
       if (claimUserId !== req.user.id) {
-        const ForbiddenError = require("../utils/errors").ForbiddenError;
+        const { ForbiddenError } = require("../utils/errors");
         throw new ForbiddenError("You are not allowed to submit claims for another user");
       }
     }
 
-    // Validate policy exists by policy number and belongs to the customer
+    // Find policy by policyNumber and ensure it belongs to this customer
     const policy = await prisma.policy.findUnique({
       where: { policyNumber: policyNumber },
       include: { product: true },
     });
-    
+
     if (!policy) {
       throw new NotFoundError(`Policy with number "${policyNumber}" not found`);
     }
 
-    // Ensure the policy belongs to the specified user (or authenticated user if not specified)
     if (policy.userId !== claimUserId) {
-      const ForbiddenError = require("../utils/errors").ForbiddenError;
+      const { ForbiddenError } = require("../utils/errors");
       throw new ForbiddenError("You can only submit claims for policies that belong to you");
     }
 
-    // Validate claim using the validation service
+    // Business validation using validation service
     const errors = validateClaim(policy, policy.product, {
       claimType: normalizedClaimType,
       amount: validateNumber(amount, "Amount"),
       incidentDate,
       description,
     });
-    
+
     if (errors.length > 0) {
-      throw new ValidationError("Claim validation failed", errors.map(err => ({
-        field: "claim",
-        message: err
-      })));
+      throw new ValidationError(
+        "Claim validation failed",
+        errors.map((err) => ({
+          field: "claim",
+          message: err,
+        }))
+      );
     }
 
-    // Handle file attachments if provided
+    // Map file attachments (if any)
     const attachments = (req.files || []).map((file) => ({
       filename: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
     }));
 
-    // Create the claim
+    // Create claim in database
     const claim = await prisma.claim.create({
       data: {
         policyId: policy.id,
@@ -451,21 +432,15 @@ router.post(
       },
       include: {
         policy: {
-          include: {
-            product: true,
-          },
+          include: { product: true },
         },
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true },
         },
       },
     });
 
-    // Log audit event
+    // Audit log
     await logAudit({
       actorId: req.user.id,
       action: "CLAIM_SUBMITTED",
@@ -480,11 +455,12 @@ router.post(
       },
     });
 
-    // Record Atenxion transaction when claim is submitted
-    recordAtenxionTransaction(claimUserId, 'CLAIM_SUBMITTED').catch(err => {
-      console.error('Failed to record Atenxion transaction for claim submission:', err);
+    // Record Atenxion transaction (non-blocking)
+    recordAtenxionTransaction(claimUserId, "CLAIM_SUBMITTED").catch((err) => {
+      console.error("Failed to record Atenxion transaction for claim submission:", err);
     });
 
+    // Response
     res.status(201).json({
       success: true,
       data: claim,
@@ -492,7 +468,6 @@ router.post(
     });
   })
 );
-
 // // GET/POST endpoint to get customer profile
 // router.get(
 //   "/profile",
