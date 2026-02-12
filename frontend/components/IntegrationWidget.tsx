@@ -61,15 +61,24 @@ export default function IntegrationWidget() {
           // Extract the script src URL
           let scriptSrc = scriptTagMatch[1];
           
-          // Add userId parameter if user is logged in
+          // Add userId and authToken parameters if user is logged in
+          // The chat widget should read authToken from URL and use it in Authorization header:
+          // Authorization: Bearer <authToken>
           if (user?.id) {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
             try {
               const url = new URL(scriptSrc, window.location.origin);
               url.searchParams.set("userId", String(user.id));
+              if (token) {
+                url.searchParams.set("authToken", token);
+              }
               scriptSrc = url.toString();
             } catch {
               const separator = scriptSrc.includes("?") ? "&" : "?";
               scriptSrc = `${scriptSrc}${separator}userId=${String(user.id)}`;
+              if (token) {
+                scriptSrc += `&authToken=${encodeURIComponent(token)}`;
+              }
             }
           }
 
@@ -135,17 +144,27 @@ export default function IntegrationWidget() {
 
         let sanitizedSrc = srcAttr.trim();
         
-        // Inject userId into iframe URL if user is logged in
+        // Inject userId and authToken into iframe URL if user is logged in
+        // The chat widget should read authToken from URL params and use it in API calls:
+        // Authorization: Bearer <authToken>
+        // Or listen for postMessage with type 'AUTH_TOKEN' to receive the token
         const userId = user?.id;
         if (userId) {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
           try {
             const url = new URL(sanitizedSrc, window.location.origin);
             url.searchParams.set('userId', String(userId));
+            if (token) {
+              url.searchParams.set('authToken', token);
+            }
             sanitizedSrc = url.toString();
           } catch {
             if (!sanitizedSrc.includes('userId=')) {
               const separator = sanitizedSrc.includes('?') ? '&' : '?';
               sanitizedSrc = `${sanitizedSrc}${separator}userId=${String(userId)}`;
+              if (token) {
+                sanitizedSrc += `&authToken=${encodeURIComponent(token)}`;
+              }
             }
           }
         }
@@ -192,6 +211,58 @@ export default function IntegrationWidget() {
       return prev;
     });
   }, [integrations, user?.id, shouldLoad]);
+
+  // Send auth token to iframes via postMessage (more secure than URL parameter)
+  useEffect(() => {
+    if (!shouldLoad || processedIframes.length === 0 || !user?.id) {
+      return;
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    // Send token to all iframes via postMessage
+    const sendTokenToIframes = () => {
+      processedIframes.forEach((iframeData) => {
+        // Find the iframe element by its src
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach((iframe) => {
+          if (iframe.src.includes(iframeData.src) || iframe.src === iframeData.src) {
+            try {
+              iframe.contentWindow?.postMessage({
+                type: 'AUTH_TOKEN',
+                token: token,
+                userId: user.id,
+                timestamp: Date.now()
+              }, '*'); // Use specific origin in production for better security
+            } catch (error) {
+              console.warn('Failed to send token to iframe:', error);
+            }
+          }
+        });
+      });
+    };
+
+    // Send immediately
+    sendTokenToIframes();
+
+    // Also send after a short delay to ensure iframe is loaded
+    const timeoutId = setTimeout(sendTokenToIframes, 1000);
+
+    // Listen for iframe ready message and resend token
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'IFRAME_READY') {
+        sendTokenToIframes();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [processedIframes, user?.id, shouldLoad]);
 
   // Don't render anything if not a customer or no iframes found
   if (!shouldLoad || processedIframes.length === 0) {
