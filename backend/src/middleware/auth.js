@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../prisma');
 require('dotenv').config();
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header) {
     return res.status(401).json({
@@ -36,19 +37,75 @@ function authenticate(req, res, next) {
   }
   
   try {
+    // Verify JWT token signature and expiration
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'Invalid token payload',
+          code: 'INVALID_TOKEN_PAYLOAD'
+        }
+      });
+    }
+    
+    // Verify user still exists in database and get latest user data
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        name: true,
+      }
+    });
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'User account not found. Token is invalid.',
+          code: 'USER_NOT_FOUND'
+        }
+      });
+    }
+    
+    // Verify email matches (additional security check)
+    if (decoded.email && decoded.email !== user.email) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'Token email mismatch. Please log in again.',
+          code: 'TOKEN_EMAIL_MISMATCH'
+        }
+      });
+    }
+    
+    // Use database user data (more reliable than token payload)
+    // This ensures role changes are reflected immediately
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    };
+    
     next();
   } catch (err) {
     let message = 'Invalid token';
     let code = 'INVALID_TOKEN';
     
     if (err.name === 'TokenExpiredError') {
-      message = 'Token has expired';
+      message = 'Token has expired. Please refresh your session.';
       code = 'TOKEN_EXPIRED';
     } else if (err.name === 'JsonWebTokenError') {
       message = 'Invalid token format';
       code = 'INVALID_TOKEN_FORMAT';
+    } else if (err.code === 'P2002' || err.message?.includes('prisma')) {
+      // Database error
+      message = 'Authentication service error. Please try again.';
+      code = 'AUTH_SERVICE_ERROR';
     }
     
     return res.status(401).json({

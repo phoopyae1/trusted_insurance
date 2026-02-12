@@ -264,6 +264,17 @@ router.post(
     // STRICT FILTERING: Only show claims for the authenticated customer
     // Example: If user.id = 6, only return claims where userId = 6
     const authenticatedUserId = req.user.id;
+    
+    // Additional validation: Ensure req.user was set by authenticate middleware
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'Authentication failed. User ID not found in token.',
+          code: 'AUTHENTICATION_FAILED'
+        }
+      });
+    }
 
     // First, get all policy IDs that belong to this customer
     // This ensures we only query claims for policies owned by the customer
