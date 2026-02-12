@@ -4,6 +4,84 @@ require('dotenv').config();
 
 async function authenticate(req, res, next) {
   const header = req.headers.authorization;
+
+  // Special handling for customer-agent endpoints used by chat/AI tools:
+  // If there is NO Authorization header but a userId is provided in the body/query,
+  // we authenticate using that userId (only for CUSTOMER role).
+  const isCustomerAgentRoute =
+    (req.baseUrl && req.baseUrl.includes('customer-agent')) ||
+    (req.originalUrl && req.originalUrl.includes('/api/customer-agent/'));
+
+  const userIdFromBody = req.body && req.body.userId;
+  const userIdFromQuery = req.query && req.query.userId;
+
+  if (!header && isCustomerAgentRoute && (userIdFromBody || userIdFromQuery)) {
+    try {
+      const customerId = Number(userIdFromBody || userIdFromQuery);
+      if (!Number.isFinite(customerId)) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            message: 'Invalid userId provided for authentication',
+            code: 'INVALID_USER_ID'
+          }
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: customerId },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          name: true,
+        }
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            message: 'User account not found. Please log in again.',
+            code: 'USER_NOT_FOUND'
+          }
+        });
+      }
+
+      if (user.role !== 'CUSTOMER') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'This endpoint is only accessible to customers',
+            code: 'FORBIDDEN',
+            requiredRole: 'CUSTOMER',
+            userRole: user.role,
+          }
+        });
+      }
+
+      // Attach user to request and continue without JWT
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      };
+
+      return next();
+    } catch (err) {
+      console.error('Error during userId-based authentication:', err);
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: 'Authentication failed. Please try again.',
+          code: 'AUTHENTICATION_FAILED'
+        }
+      });
+    }
+  }
+
+  // Standard JWT-based authentication
   if (!header) {
     return res.status(401).json({
       success: false,

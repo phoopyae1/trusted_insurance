@@ -391,6 +391,14 @@ router.post(
     // Use userId from request body if provided, otherwise use authenticated user's ID
     const claimUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
 
+    // If userId is provided in the body, it must match the authenticated user's ID
+    if (userId) {
+      if (claimUserId !== req.user.id) {
+        const ForbiddenError = require("../utils/errors").ForbiddenError;
+        throw new ForbiddenError("You are not allowed to submit claims for another user");
+      }
+    }
+
     // Validate policy exists by policy number and belongs to the customer
     const policy = await prisma.policy.findUnique({
       where: { policyNumber: policyNumber },
