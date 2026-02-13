@@ -18,7 +18,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', dateOfBirth: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(form.email, form.password, form.name);
+      await register(form.email, form.password, form.name, form.dateOfBirth || undefined);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -74,6 +74,22 @@ export default function RegisterPage() {
             required
             autoComplete="email"
             disabled={loading}
+          />
+          <TextField
+            fullWidth
+            label="Date of Birth"
+            type="date"
+            value={form.dateOfBirth}
+            onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+            margin="normal"
+            InputLabelProps={{
+              shrink: true,
+            }}
+            inputProps={{
+              max: new Date().toISOString().split('T')[0], // Prevent future dates
+            }}
+            disabled={loading}
+            helperText="Optional - Your date of birth"
           />
           <TextField
             fullWidth

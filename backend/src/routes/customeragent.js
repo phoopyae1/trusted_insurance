@@ -88,6 +88,25 @@ router.post(
     // Use userId from request body if provided, otherwise use authenticated user's ID
     const quoteUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
 
+    // Fetch customer profile to get dateOfBirth for age calculation
+    const customerProfile = await prisma.customerProfile.findUnique({
+      where: { userId: quoteUserId },
+      select: { dateOfBirth: true }
+    });
+
+    // Calculate age from dateOfBirth
+    let calculatedAge = null;
+    if (customerProfile?.dateOfBirth) {
+      const today = new Date();
+      const birthDate = new Date(customerProfile.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      calculatedAge = age;
+    }
+
     // Find product by ID or name
     let product = null;
     if (productId) {
@@ -112,11 +131,16 @@ router.post(
     // Validate required fields based on product type
     const validationErrors = [];
 
-    // Age is always required for all products
-    if (!formData.age || Number(formData.age) < 18 || Number(formData.age) > 100) {
+    // Age validation - must be calculated from customer profile
+    if (!calculatedAge) {
+      validationErrors.push({
+        field: "dateOfBirth",
+        message: "Date of birth is required in your profile to request a quote. Please update your profile with your date of birth."
+      });
+    } else if (calculatedAge < 18 || calculatedAge > 100) {
       validationErrors.push({
         field: "age",
-        message: "Age is required and must be between 18 and 100"
+        message: `Your age (${calculatedAge}) must be between 18 and 100 to request a quote`
       });
     }
 
@@ -205,7 +229,11 @@ router.post(
 
     // Build metadata object from form fields
     // Use the formData we extracted earlier (already excludes productId, productName, userId, metadata)
-    const metadata = formData;
+    // Add calculated age to metadata (override if age was provided in request body)
+    const metadata = {
+      ...formData,
+      age: calculatedAge // Always use calculated age from profile
+    };
 
     // Calculate premium based on product and metadata
     const premium = calculatePremium(product.basePremium, metadata);

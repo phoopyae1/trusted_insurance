@@ -112,7 +112,7 @@ router.patch(
       recordAtenxionTransaction(quote.userId, 'POLICY_PURCHASED').catch(err => {
         console.error('Failed to record Atenxion transaction for quote approval:', err);
       });
-    }
+  }
 
     res.json({ success: true, data: updatedQuote });
   })

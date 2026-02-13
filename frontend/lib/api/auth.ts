@@ -29,12 +29,14 @@ export const authApi = {
   register: async (
     email: string,
     password: string,
-    name: string
+    name: string,
+    dateOfBirth?: string
   ): Promise<AuthResponse> => {
     const response = await apiClient.post<any>('/api/auth/register', {
       email,
       password,
       name,
+      dateOfBirth,
     });
     // Handle both response formats: direct object or wrapped in { data: ... }
     if (response.token) {

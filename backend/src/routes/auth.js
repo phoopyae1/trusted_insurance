@@ -26,15 +26,36 @@ async function createRefreshToken(userId) {
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, dateOfBirth } = req.body;
     if (!email || !password || !name) return res.status(400).json({ message: 'Missing fields' });
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ message: 'Email already registered' });
 
+    // Validate dateOfBirth if provided
+    let parsedDateOfBirth = null;
+    if (dateOfBirth) {
+      parsedDateOfBirth = new Date(dateOfBirth);
+      if (isNaN(parsedDateOfBirth.getTime())) {
+        return res.status(400).json({ message: 'Invalid date of birth format' });
+      }
+      // Ensure date is not in the future
+      if (parsedDateOfBirth > new Date()) {
+        return res.status(400).json({ message: 'Date of birth cannot be in the future' });
+      }
+    }
+
     const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, password: hashed, name, role: 'CUSTOMER', profile: { create: {} } }
+      data: { 
+        email, 
+        password: hashed, 
+        name, 
+        role: 'CUSTOMER', 
+        profile: { 
+          create: dateOfBirth ? { dateOfBirth: parsedDateOfBirth } : {} 
+        } 
+      }
     });
     const token = createAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
