@@ -16,6 +16,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Container,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -134,19 +135,20 @@ export default function DashboardPage() {
   );
 
   return (
-    <Stack spacing={3}>
-      {/* Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
-        }}
-      >
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={3}>
+        {/* Header */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 0,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
+          }}
+        >
         <Stack spacing={1.5}>
           <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
             Dashboard Report
@@ -610,6 +612,7 @@ export default function DashboardPage() {
     </Grid>
         </>
       )}
-    </Stack>
+      </Stack>
+    </Container>
   );
 }

@@ -17,6 +17,7 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Container,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { claimsApi, Claim } from '../../lib/api/claims';
@@ -123,18 +124,19 @@ export default function ClaimsPage() {
     }
 
   return (
-    <Stack spacing={3}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
-        }}
-      >
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={3}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 0,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
+          }}
+        >
         <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
           Claims center
         </Typography>
@@ -443,6 +445,7 @@ export default function ClaimsPage() {
       >
         <Alert severity={toast?.severity || 'info'}>{toast?.message}</Alert>
       </Snackbar>
-    </Stack>
+      </Stack>
+    </Container>
   );
 }

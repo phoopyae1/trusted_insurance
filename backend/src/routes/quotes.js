@@ -57,7 +57,7 @@ router.patch(
   authenticate,
   authorize(['UNDERWRITER', 'ADMIN']),
   asyncHandler(async (req, res) => {
-    const { status } = req.body;
+    const { status, premiumPaid, startDate, endDate } = req.body;
     validateRequired(req.body, ['status']);
     
     const validStatuses = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
@@ -73,10 +73,23 @@ router.patch(
 
     // If approving and no policy exists, automatically create one
     if (status === 'APPROVED' && !quote.policy) {
-      // Set default dates: start today, end 1 year from now
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setFullYear(startDate.getFullYear() + 1);
+      // Use provided dates or set default dates: start today, end 1 year from now
+      const policyStartDate = startDate ? new Date(startDate) : new Date();
+      const policyEndDate = endDate ? new Date(endDate) : new Date();
+      if (!endDate) {
+        policyEndDate.setFullYear(policyStartDate.getFullYear() + 1);
+      }
+
+      // Validate dates
+      if (policyEndDate <= policyStartDate) {
+        throw new ValidationError('Invalid dates', [{ 
+          field: 'endDate', 
+          message: 'End date must be after start date' 
+        }]);
+      }
+
+      // Use premiumPaid from request body if provided, otherwise default to false
+      const isPremiumPaid = premiumPaid === true || premiumPaid === 'true';
 
       const policy = await prisma.policy.create({
         data: {
@@ -84,9 +97,9 @@ router.patch(
           productId: quote.productId,
           userId: quote.userId,
           premium: quote.premium,
-          startDate: startDate,
-          endDate: endDate,
-          premiumPaid: false,
+          startDate: policyStartDate,
+          endDate: policyEndDate,
+          premiumPaid: isPremiumPaid,
           policyNumber: `POL-${Date.now()}-${quote.id}`
         },
         include: { product: true, quote: true }
@@ -97,8 +110,59 @@ router.patch(
         action: 'POLICY_AUTO_ISSUED',
         entityType: 'Policy',
         entityId: policy.id,
-        metadata: { policyNumber: policy.policyNumber, quoteId: quote.id }
+        metadata: { 
+          policyNumber: policy.policyNumber, 
+          quoteId: quote.id,
+          premiumPaid: isPremiumPaid,
+          startDate: policyStartDate.toISOString(),
+          endDate: policyEndDate.toISOString()
+        }
       });
+    } else if (status === 'APPROVED' && quote.policy) {
+      // If policy already exists and quote is being approved, update fields if provided
+      const updateData = {};
+      
+      if (premiumPaid !== undefined) {
+        updateData.premiumPaid = premiumPaid === true || premiumPaid === 'true';
+      }
+      
+      if (startDate) {
+        updateData.startDate = new Date(startDate);
+      }
+      
+      if (endDate) {
+        updateData.endDate = new Date(endDate);
+      }
+      
+      // Validate dates if both are provided
+      if (startDate && endDate) {
+        const newStartDate = new Date(startDate);
+        const newEndDate = new Date(endDate);
+        if (newEndDate <= newStartDate) {
+          throw new ValidationError('Invalid dates', [{ 
+            field: 'endDate', 
+            message: 'End date must be after start date' 
+          }]);
+        }
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.policy.update({
+          where: { id: quote.policy.id },
+          data: updateData
+        });
+
+        await logAudit({
+          actorId: req.user.id,
+          action: 'POLICY_UPDATED',
+          entityType: 'Policy',
+          entityId: quote.policy.id,
+          metadata: { 
+            policyNumber: quote.policy.policyNumber,
+            ...updateData
+          }
+        });
+      }
     }
 
     const updatedQuote = await prisma.quote.update({

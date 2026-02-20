@@ -22,6 +22,9 @@ export interface Quote {
   policy?: {
     id: number;
     policyNumber: string;
+    startDate?: string;
+    endDate?: string;
+    premiumPaid?: boolean;
   } | null;
 }
 
@@ -61,7 +64,23 @@ export const quotesApi = {
     return response;
   },
 
-  updateStatus: async (id: number, status: string): Promise<Quote> => {
-    return apiClient.patch<Quote>(`/api/quotes/${id}/status`, { status });
+  updateStatus: async (
+    id: number, 
+    status: string, 
+    premiumPaid?: boolean, 
+    startDate?: string, 
+    endDate?: string
+  ): Promise<Quote> => {
+    const body: any = { status };
+    if (premiumPaid !== undefined) {
+      body.premiumPaid = premiumPaid;
+    }
+    if (startDate) {
+      body.startDate = startDate;
+    }
+    if (endDate) {
+      body.endDate = endDate;
+    }
+    return apiClient.patch<Quote>(`/api/quotes/${id}/status`, body);
   },
 };

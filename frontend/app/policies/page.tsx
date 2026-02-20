@@ -1,486 +1,997 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import {
   Box,
-  Paper,
+  Container,
   Typography,
-  CircularProgress,
-  Alert,
-  Stack,
-  Chip,
+  Grid,
   Card,
   CardContent,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  CardActions,
   Button,
-  TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  FormControlLabel,
-  Checkbox,
-  Snackbar,
-  IconButton,
-  Menu,
+  Stack,
+  Chip,
+  Divider,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Tabs,
+  Tab,
+  Paper,
 } from '@mui/material';
-import { policiesApi, Policy } from '../../lib/api/policies';
+import {
+  CheckCircle as CheckIcon,
+  LocalHospital as HospitalIcon,
+  Phone as PhoneIcon,
+  LocalHospital as HealthIcon,
+  DirectionsCar as MotorIcon,
+  Favorite as LifeIcon,
+  FlightTakeoff as TravelIcon,
+  LocalFireDepartment as FireIcon,
+  Business as BusinessIcon,
+  AccountBalance as PropertyIcon,
+  Home as HomeIcon,
+  Gavel as LiabilityIcon,
+} from '@mui/icons-material';
+import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiClient } from '../../lib/api/client';
-import EditIcon from '@mui/icons-material/Edit';
-import PaymentIcon from '@mui/icons-material/Payment';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-// Date formatting helper
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'N/A';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch {
-    return dateString;
-  }
+
+interface Package {
+  name: string;
+  premium: number;
+  benefits: string[];
+  hospitals: string[];
+  phoneNumber: string;
+  popular?: boolean;
+}
+
+interface ProductPackages {
+  [key: string]: {
+    name: string;
+    icon: any;
+    description: string;
+    packages: Package[];
+  };
+}
+
+const productPackages: ProductPackages = {
+  HEALTH: {
+    name: 'Health Insurance',
+    icon: HealthIcon,
+    description: 'Comprehensive health coverage for you and your family',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 1200,
+        benefits: [
+          'Inpatient coverage up to $50,000 per year',
+          'Outpatient consultation coverage',
+          'Emergency room visits',
+          'Basic diagnostic tests',
+          'Prescription medication coverage',
+        ],
+        hospitals: [
+          'Singapore General Hospital',
+          'National University Hospital',
+          'Tan Tock Seng Hospital',
+        ],
+        phoneNumber: '+65 6123 4567',
+      },
+      {
+        name: 'Standard',
+        premium: 2400,
+        benefits: [
+          'Inpatient coverage up to $100,000 per year',
+          'Outpatient consultation coverage',
+          'Emergency room visits',
+          'Comprehensive diagnostic tests',
+          'Prescription medication coverage',
+          'Dental care (basic)',
+          'Maternity coverage',
+        ],
+        hospitals: [
+          'Singapore General Hospital',
+          'National University Hospital',
+          'Tan Tock Seng Hospital',
+          'Mount Elizabeth Hospital',
+          'Gleneagles Hospital',
+        ],
+        phoneNumber: '+65 6123 4568',
+      },
+      {
+        name: 'Premium',
+        premium: 3600,
+        benefits: [
+          'Inpatient coverage up to $200,000 per year',
+          'Outpatient consultation coverage',
+          'Emergency room visits',
+          'Comprehensive diagnostic tests',
+          'Prescription medication coverage',
+          'Dental care (comprehensive)',
+          'Maternity coverage',
+          'Mental health coverage',
+          'Alternative medicine coverage',
+          'Annual health checkup',
+        ],
+        hospitals: [
+          'Singapore General Hospital',
+          'National University Hospital',
+          'Tan Tock Seng Hospital',
+          'Mount Elizabeth Hospital',
+          'Gleneagles Hospital',
+          'Raffles Hospital',
+          'Parkway East Hospital',
+        ],
+        phoneNumber: '+65 6123 4569',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 6000,
+        benefits: [
+          'Unlimited inpatient coverage',
+          'Outpatient consultation coverage',
+          'Emergency room visits',
+          'Comprehensive diagnostic tests',
+          'Prescription medication coverage',
+          'Dental care (comprehensive)',
+          'Maternity coverage',
+          'Mental health coverage',
+          'Alternative medicine coverage',
+          'Annual health checkup',
+          'International coverage',
+          'Private room accommodation',
+          'VIP services',
+          '24/7 concierge service',
+        ],
+        hospitals: [
+          'Singapore General Hospital',
+          'National University Hospital',
+          'Tan Tock Seng Hospital',
+          'Mount Elizabeth Hospital',
+          'Gleneagles Hospital',
+          'Raffles Hospital',
+          'Parkway East Hospital',
+          'Mount Alvernia Hospital',
+          'Farrer Park Hospital',
+        ],
+        phoneNumber: '+65 6123 4570',
+      },
+    ],
+  },
+  MOTOR: {
+    name: 'Motor Insurance',
+    icon: MotorIcon,
+    description: 'Complete vehicle protection with flexible coverage options',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 800,
+        benefits: [
+          'Third-party liability coverage',
+          'Fire and theft protection',
+          'Roadside assistance',
+          '24/7 helpline',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4600',
+      },
+      {
+        name: 'Standard',
+        premium: 1500,
+        benefits: [
+          'Comprehensive coverage',
+          'Third-party liability',
+          'Fire and theft protection',
+          'Accident coverage',
+          'Roadside assistance',
+          '24/7 helpline',
+          'Windscreen coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4601',
+      },
+      {
+        name: 'Premium',
+        premium: 2500,
+        benefits: [
+          'Comprehensive coverage',
+          'Third-party liability',
+          'Fire and theft protection',
+          'Accident coverage',
+          'Roadside assistance',
+          '24/7 helpline',
+          'Windscreen coverage',
+          'Personal accident coverage',
+          'No-claim discount protection',
+          'Rental car coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4602',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 4000,
+        benefits: [
+          'Comprehensive coverage',
+          'Third-party liability',
+          'Fire and theft protection',
+          'Accident coverage',
+          'Roadside assistance',
+          '24/7 helpline',
+          'Windscreen coverage',
+          'Personal accident coverage',
+          'No-claim discount protection',
+          'Rental car coverage',
+          'Key replacement',
+          'Towing services',
+          'Concierge service',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4603',
+      },
+    ],
+  },
+  LIFE: {
+    name: 'Life Insurance',
+    icon: LifeIcon,
+    description: 'Secure your family\'s future with comprehensive life coverage',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 1500,
+        benefits: [
+          'Death benefit: $100,000',
+          'Term coverage',
+          'Basic critical illness coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4700',
+      },
+      {
+        name: 'Standard',
+        premium: 3000,
+        benefits: [
+          'Death benefit: $250,000',
+          'Term coverage',
+          'Critical illness coverage',
+          'Disability coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4701',
+      },
+      {
+        name: 'Premium',
+        premium: 5000,
+        benefits: [
+          'Death benefit: $500,000',
+          'Term coverage',
+          'Critical illness coverage',
+          'Disability coverage',
+          'Accidental death benefit',
+          'Waiver of premium',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4702',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 10000,
+        benefits: [
+          'Death benefit: $1,000,000+',
+          'Term coverage',
+          'Critical illness coverage',
+          'Disability coverage',
+          'Accidental death benefit',
+          'Waiver of premium',
+          'Cash value accumulation',
+          'Estate planning benefits',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4703',
+      },
+    ],
+  },
+  TRAVEL: {
+    name: 'Travel Insurance',
+    icon: TravelIcon,
+    description: 'Travel with confidence and peace of mind',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 50,
+        benefits: [
+          'Trip cancellation coverage',
+          'Medical emergency: $50,000',
+          'Baggage loss coverage',
+          'Flight delay coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4800',
+      },
+      {
+        name: 'Standard',
+        premium: 100,
+        benefits: [
+          'Trip cancellation coverage',
+          'Medical emergency: $100,000',
+          'Baggage loss coverage',
+          'Flight delay coverage',
+          'Trip interruption coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4801',
+      },
+      {
+        name: 'Premium',
+        premium: 200,
+        benefits: [
+          'Trip cancellation coverage',
+          'Medical emergency: $200,000',
+          'Baggage loss coverage',
+          'Flight delay coverage',
+          'Trip interruption coverage',
+          'Adventure sports coverage',
+          '24/7 travel assistance',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4802',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 400,
+        benefits: [
+          'Trip cancellation coverage',
+          'Medical emergency: $500,000',
+          'Baggage loss coverage',
+          'Flight delay coverage',
+          'Trip interruption coverage',
+          'Adventure sports coverage',
+          '24/7 travel assistance',
+          'Concierge services',
+          'Business travel coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4803',
+      },
+    ],
+  },
+  FIRE: {
+    name: 'Fire Insurance',
+    icon: FireIcon,
+    description: 'Protect your property against fire damage and related perils',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 600,
+        benefits: [
+          'Fire damage coverage up to $200,000',
+          'Smoke damage protection',
+          'Lightning strike coverage',
+          'Explosion coverage',
+          '24/7 emergency helpline',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4900',
+      },
+      {
+        name: 'Standard',
+        premium: 1200,
+        benefits: [
+          'Fire damage coverage up to $500,000',
+          'Smoke damage protection',
+          'Lightning strike coverage',
+          'Explosion coverage',
+          'Water damage from firefighting',
+          'Temporary accommodation coverage',
+          '24/7 emergency helpline',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4901',
+      },
+      {
+        name: 'Premium',
+        premium: 2000,
+        benefits: [
+          'Fire damage coverage up to $1,000,000',
+          'Smoke damage protection',
+          'Lightning strike coverage',
+          'Explosion coverage',
+          'Water damage from firefighting',
+          'Temporary accommodation coverage',
+          'Contents replacement coverage',
+          'Business interruption coverage',
+          '24/7 emergency helpline',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4902',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 3500,
+        benefits: [
+          'Unlimited fire damage coverage',
+          'Smoke damage protection',
+          'Lightning strike coverage',
+          'Explosion coverage',
+          'Water damage from firefighting',
+          'Temporary accommodation coverage',
+          'Contents replacement coverage',
+          'Business interruption coverage',
+          'Loss of rent coverage',
+          'Debris removal coverage',
+          '24/7 emergency helpline',
+          'Priority claims processing',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 4903',
+      },
+    ],
+  },
+  PROPERTY: {
+    name: 'Property Insurance',
+    icon: PropertyIcon,
+    description: 'Comprehensive protection for your commercial and residential properties',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 800,
+        benefits: [
+          'Property damage coverage up to $300,000',
+          'Theft and burglary protection',
+          'Vandalism coverage',
+          'Natural disaster coverage',
+          '24/7 claims support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5000',
+      },
+      {
+        name: 'Standard',
+        premium: 1500,
+        benefits: [
+          'Property damage coverage up to $750,000',
+          'Theft and burglary protection',
+          'Vandalism coverage',
+          'Natural disaster coverage',
+          'Liability coverage',
+          'Loss of rent coverage',
+          '24/7 claims support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5001',
+      },
+      {
+        name: 'Premium',
+        premium: 2800,
+        benefits: [
+          'Property damage coverage up to $1,500,000',
+          'Theft and burglary protection',
+          'Vandalism coverage',
+          'Natural disaster coverage',
+          'Liability coverage',
+          'Loss of rent coverage',
+          'Equipment breakdown coverage',
+          'Cyber liability coverage',
+          '24/7 claims support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5002',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 5000,
+        benefits: [
+          'Unlimited property damage coverage',
+          'Theft and burglary protection',
+          'Vandalism coverage',
+          'Natural disaster coverage',
+          'Liability coverage',
+          'Loss of rent coverage',
+          'Equipment breakdown coverage',
+          'Cyber liability coverage',
+          'Business interruption coverage',
+          'Concierge claims service',
+          '24/7 claims support',
+          'Priority processing',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5003',
+      },
+    ],
+  },
+  HOME: {
+    name: 'Home Insurance',
+    icon: HomeIcon,
+    description: 'Complete protection for your home and personal belongings',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 700,
+        benefits: [
+          'Home structure coverage up to $400,000',
+          'Personal belongings coverage up to $50,000',
+          'Liability coverage up to $100,000',
+          'Theft protection',
+          'Natural disaster coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5100',
+      },
+      {
+        name: 'Standard',
+        premium: 1400,
+        benefits: [
+          'Home structure coverage up to $800,000',
+          'Personal belongings coverage up to $150,000',
+          'Liability coverage up to $300,000',
+          'Theft protection',
+          'Natural disaster coverage',
+          'Temporary accommodation coverage',
+          'Home assistance helpline',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5101',
+      },
+      {
+        name: 'Premium',
+        premium: 2500,
+        benefits: [
+          'Home structure coverage up to $1,500,000',
+          'Personal belongings coverage up to $300,000',
+          'Liability coverage up to $500,000',
+          'Theft protection',
+          'Natural disaster coverage',
+          'Temporary accommodation coverage',
+          'Home assistance helpline',
+          'Jewelry and valuables coverage',
+          'Identity theft protection',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5102',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 4500,
+        benefits: [
+          'Unlimited home structure coverage',
+          'Personal belongings coverage up to $500,000',
+          'Liability coverage up to $1,000,000',
+          'Theft protection',
+          'Natural disaster coverage',
+          'Temporary accommodation coverage',
+          'Home assistance helpline',
+          'Jewelry and valuables coverage',
+          'Identity theft protection',
+          'Home maintenance coverage',
+          'Concierge service',
+          'Priority claims processing',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5103',
+      },
+    ],
+  },
+  BUSINESS: {
+    name: 'Business Insurance',
+    icon: BusinessIcon,
+    description: 'Comprehensive coverage for your business operations and assets',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 1500,
+        benefits: [
+          'Property coverage up to $500,000',
+          'Liability coverage up to $1,000,000',
+          'Business interruption coverage',
+          'Equipment breakdown coverage',
+          '24/7 business support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5200',
+      },
+      {
+        name: 'Standard',
+        premium: 3000,
+        benefits: [
+          'Property coverage up to $1,500,000',
+          'Liability coverage up to $2,000,000',
+          'Business interruption coverage',
+          'Equipment breakdown coverage',
+          'Employee liability coverage',
+          'Cyber liability coverage',
+          '24/7 business support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5201',
+      },
+      {
+        name: 'Premium',
+        premium: 6000,
+        benefits: [
+          'Property coverage up to $5,000,000',
+          'Liability coverage up to $5,000,000',
+          'Business interruption coverage',
+          'Equipment breakdown coverage',
+          'Employee liability coverage',
+          'Cyber liability coverage',
+          'Professional indemnity coverage',
+          'Directors and officers coverage',
+          '24/7 business support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5202',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 12000,
+        benefits: [
+          'Unlimited property coverage',
+          'Liability coverage up to $10,000,000',
+          'Business interruption coverage',
+          'Equipment breakdown coverage',
+          'Employee liability coverage',
+          'Cyber liability coverage',
+          'Professional indemnity coverage',
+          'Directors and officers coverage',
+          'International coverage',
+          'Concierge business services',
+          '24/7 business support',
+          'Priority claims processing',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5203',
+      },
+    ],
+  },
+  LIABILITY: {
+    name: 'Liability Insurance',
+    icon: LiabilityIcon,
+    description: 'Protect your business from third-party claims and legal liabilities',
+    packages: [
+      {
+        name: 'Basic',
+        premium: 1000,
+        benefits: [
+          'General liability coverage up to $1,000,000',
+          'Bodily injury protection',
+          'Property damage protection',
+          'Personal injury protection',
+          'Legal defense coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5300',
+      },
+      {
+        name: 'Standard',
+        premium: 2000,
+        benefits: [
+          'General liability coverage up to $2,000,000',
+          'Bodily injury protection',
+          'Property damage protection',
+          'Personal injury protection',
+          'Legal defense coverage',
+          'Product liability coverage',
+          'Completed operations coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5301',
+      },
+      {
+        name: 'Premium',
+        premium: 4000,
+        benefits: [
+          'General liability coverage up to $5,000,000',
+          'Bodily injury protection',
+          'Property damage protection',
+          'Personal injury protection',
+          'Legal defense coverage',
+          'Product liability coverage',
+          'Completed operations coverage',
+          'Advertising injury coverage',
+          'Medical payments coverage',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5302',
+        popular: true,
+      },
+      {
+        name: 'Ultra Premium',
+        premium: 8000,
+        benefits: [
+          'General liability coverage up to $10,000,000',
+          'Bodily injury protection',
+          'Property damage protection',
+          'Personal injury protection',
+          'Legal defense coverage',
+          'Product liability coverage',
+          'Completed operations coverage',
+          'Advertising injury coverage',
+          'Medical payments coverage',
+          'International liability coverage',
+          'Crisis management coverage',
+          'Priority legal support',
+        ],
+        hospitals: [],
+        phoneNumber: '+65 6123 5303',
+      },
+    ],
+  },
 };
 
+const productTypes = Object.keys(productPackages);
+
 export default function PoliciesPage() {
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
-  const [editForm, setEditForm] = useState({
-    status: '',
-    startDate: '',
-    endDate: '',
-    premiumPaid: false,
-  });
-  const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ element: HTMLElement; policy: Policy } | null>(null);
-  const { isAuthenticated, user } = useAuth();
-  const queryClient = useQueryClient();
+  const [selectedProduct, setSelectedProduct] = useState<string>('HEALTH');
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
 
-  const isStaff = user?.role === 'ADMIN' || user?.role === 'UNDERWRITER' || user?.role === 'AGENT' || user?.role === 'CLAIMS_OFFICER';
+  const handleProductChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setSelectedProduct(newValue);
+  };
 
-  const { data: policies, isLoading, error } = useQuery({
-    queryKey: ['policies'],
-    queryFn: () => policiesApi.getAll(),
-    enabled: isAuthenticated,
-  });
-
-  const updatePolicyMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: any }) => policiesApi.update(id, updates),
-    onSuccess: () => {
-      setToast({ message: 'Policy updated successfully', severity: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['policies'] });
-      setEditDialogOpen(false);
-      setSelectedPolicy(null);
-    },
-    onError: (error: Error) => {
-      setToast({ message: error.message || 'Failed to update policy', severity: 'error' });
-    },
-  });
-
-  const markAsPaidMutation = useMutation({
-    mutationFn: async (policy: Policy) => {
-      // Update policy to mark premium as paid
-      await policiesApi.update(policy.id, { premiumPaid: true });
-      // Also create a payment record
-      await apiClient.post('/api/payments', {
-        policyId: policy.id,
-        amount: policy.premium,
-        method: 'MANUAL',
-        status: 'PAID',
-      });
-      return { success: true };
-    },
-    onSuccess: () => {
-      setToast({ message: 'Premium marked as paid successfully', severity: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['policies'] });
-    },
-    onError: (error: Error) => {
-      setToast({ message: error.message || 'Failed to mark premium as paid', severity: 'error' });
-    },
-  });
-
-  const handleMarkAsPaid = (policy: Policy) => {
-    if (window.confirm(`Mark premium of $${policy.premium?.toFixed(2) || '0.00'} as paid for policy ${policy.policyNumber}?`)) {
-      markAsPaidMutation.mutate(policy);
+  const handleGetQuote = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      router.push('/login');
+    } else {
+      router.push('/quotes');
     }
   };
 
-  const handleEdit = (policy: Policy) => {
-    setSelectedPolicy(policy);
-    setEditForm({
-      status: policy.status || 'ACTIVE',
-      startDate: policy.startDate ? new Date(policy.startDate).toISOString().split('T')[0] : '',
-      endDate: policy.endDate ? new Date(policy.endDate).toISOString().split('T')[0] : '',
-      premiumPaid: policy.premiumPaid || false,
-    });
-    setEditDialogOpen(true);
+  const handleProductClick = (productType: string) => {
+    if (isAuthenticated) {
+      router.push(`/policies/${productType.toLowerCase()}`);
+    }
   };
 
-  const handleSave = () => {
-    if (!selectedPolicy) return;
-    updatePolicyMutation.mutate({
-      id: selectedPolicy.id,
-      updates: {
-        status: editForm.status,
-        startDate: editForm.startDate,
-        endDate: editForm.endDate,
-        premiumPaid: editForm.premiumPaid,
-      },
-    });
-  };
-
-
-
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert severity="error">
-        Failed to load policies. Please try again later.
-      </Alert>
-    );
-  }
-
-  const activePolicies = policies?.filter((p) => p.status === 'ACTIVE') || [];
-  const totalPremium = policies?.reduce((sum, p) => sum + (p.premium || 0), 0) || 0;
+  const currentProduct = productPackages[selectedProduct];
+  const IconComponent = currentProduct.icon;
 
   return (
-    <Stack spacing={3}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
-        }}
-      >
-        <Stack spacing={1.5}>
-          <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
-            Policy management
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={4}>
+        {/* Header */}
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography variant="h3" fontWeight={700} gutterBottom>
+            Insurance Policies & Packages
           </Typography>
-          <Typography variant="h4" fontWeight={700}>
-            Your insurance policies at a glance.
+          <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto' }}>
+            Choose the perfect insurance package tailored to your needs. All packages include comprehensive coverage with access to Singapore's leading healthcare facilities.
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640 }}>
-            View all your active and expired policies, track premium payments, and manage your coverage.
-          </Typography>
-        </Stack>
-      </Paper>
+        </Box>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Total Policies
-              </Typography>
-              <Typography variant="h4" fontWeight={700}>
-                {policies?.length || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Active Policies
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color="success.main">
-                {activePolicies.length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Total Premium
-              </Typography>
-              <Typography variant="h4" fontWeight={700}>
-                ${totalPremium.toFixed(2)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Paper
-        elevation={0}
-        sx={{ p: 3, borderRadius: 0, border: '1px solid', borderColor: 'divider' }}
-      >
-        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-          All Policies
-        </Typography>
-        {policies && policies.length === 0 ? (
-          <Box
+        {/* Product Tabs */}
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          <Tabs
+            value={selectedProduct}
+            onChange={handleProductChange}
+            variant="scrollable"
+            scrollButtons="auto"
             sx={{
-              py: 8,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'text.secondary',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                minHeight: 64,
+              },
             }}
           >
-            <Typography variant="h6" gutterBottom>
-              No policies found
-            </Typography>
-            <Typography variant="body2">You don't have any policies yet. Request a quote to get started.</Typography>
-          </Box>
-        ) : (
-          <Stack spacing={2}>
-            {policies?.map((policy) => {
-              const statusColors: Record<string, { bg: string; color: string; border: string }> = {
-                ACTIVE: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
-                LAPSED: { bg: 'rgba(245, 158, 11, 0.08)', color: '#F59E0B', border: '#F59E0B' },
-                CANCELLED: { bg: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', border: '#EF4444' },
-                RENEWED: { bg: 'rgba(16, 185, 129, 0.08)', color: '#10B981', border: '#10B981' },
-              };
-              const config = statusColors[policy.status] || { bg: 'rgba(107, 114, 128, 0.08)', color: '#6B7280', border: '#6B7280' };
-              const menuOpen = Boolean(menuAnchor && menuAnchor.policy.id === policy.id);
-
+            {productTypes.map((type) => {
+              const Icon = productPackages[type].icon;
               return (
-                <Paper
-                  key={policy.id}
-                  elevation={0}
-                  sx={{
-                    p: 3,
-                    borderRadius: 0,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderLeft: `4px solid ${config.border}`,
-                    transition: 'all 0.3s ease',
-                    position: 'relative',
-                    '&:hover': {
-                      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
-                      transform: 'translateX(4px)',
-                    },
-                  }}
-                >
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-                        Policy Number
-                      </Typography>
-                      <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
-                        {policy.policyNumber}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-                        Product
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600} sx={{ mt: 0.5 }}>
-                        {policy.product?.name || 'Unknown Product'}
-                      </Typography>
-                      <Chip
-                        label={policy.product?.type || 'N/A'}
-                        size="small"
-                        sx={{
-                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                          color: '#3B82F6',
-                          borderRadius: '16px',
-                          mt: 0.5,
-                          fontSize: '0.7rem',
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-                        Premium
-                      </Typography>
-                      <Typography variant="h6" fontWeight={700} color="primary.main" sx={{ mt: 0.5 }}>
-                        ${Number(policy.premium).toFixed(2)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
-                        Coverage Period
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        {formatDate(policy.startDate)} - {formatDate(policy.endDate)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Chip
-                          label={policy.status}
-                          sx={{
-                            backgroundColor: config.bg,
-                            color: config.color,
-                            border: `1px solid ${config.border}`,
-                            fontWeight: 600,
-                            borderRadius: '20px',
-                            mb: 0.5,
-                          }}
-                        />
-                        {isStaff && (
-                          <IconButton
-                            size="small"
-                            onClick={(e) => setMenuAnchor({ element: e.currentTarget, policy })}
-                            sx={{ ml: 'auto' }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        )}
-                      </Box>
-                      <Chip
-                        label={policy.premiumPaid ? 'Paid' : 'Pending'}
-                        size="small"
-                        sx={{
-                          backgroundColor: policy.premiumPaid 
-                            ? 'rgba(16, 185, 129, 0.1)' 
-                            : 'rgba(245, 158, 11, 0.1)',
-                          color: policy.premiumPaid ? '#10B981' : '#F59E0B',
-                          borderRadius: '16px',
-                          fontSize: '0.7rem',
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                </Paper>
+                <Tab
+                  key={type}
+                  value={type}
+                  label={productPackages[type].name}
+                  icon={<Icon sx={{ mb: 0.5 }} />}
+                  iconPosition="top"
+                />
               );
             })}
+          </Tabs>
+        </Paper>
+
+        {/* Product Description */}
+        <Box>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+            <IconComponent sx={{ fontSize: 40, color: 'primary.main' }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h4" fontWeight={700}>
+                {currentProduct.name}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                {currentProduct.description}
+              </Typography>
+            </Box>
+            {isAuthenticated && (
+              <Button
+                variant="outlined"
+                onClick={() => handleProductClick(selectedProduct)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 3,
+                }}
+              >
+                View Details
+              </Button>
+            )}
           </Stack>
-        )}
-      </Paper>
+        </Box>
 
-      {/* Actions Menu */}
-      {isStaff && menuAnchor && (
-        <Menu
-          anchorEl={menuAnchor.element}
-          open={Boolean(menuAnchor)}
-          onClose={() => setMenuAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        {/* Packages Grid */}
+        <Grid container spacing={3}>
+          {currentProduct.packages.map((pkg, index) => (
+            <Grid item xs={12} sm={6} md={3} key={pkg.name}>
+              <Card
+                elevation={0}
+                onClick={() => isAuthenticated && handleProductClick(selectedProduct)}
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  border: '2px solid',
+                  borderColor: pkg.popular ? 'primary.main' : 'divider',
+                  borderRadius: 3,
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                  cursor: isAuthenticated ? 'pointer' : 'default',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6,
+                    borderColor: 'primary.main',
+                  },
+                }}
+              >
+                {pkg.popular && (
+                  <Chip
+                    label="Most Popular"
+                    color="primary"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      // top: 16,
+                      right: 16,
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
+                <CardContent sx={{ flexGrow: 1}}>
+                  <Typography variant="h5" fontWeight={700} gutterBottom>
+                    {pkg.name}
+                  </Typography>
+                  <Box sx={{ my: 3 }}>
+                    <Typography variant="h3" fontWeight={800} color="primary.main">
+                      ${pkg.premium.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      per year
+                    </Typography>
+                  </Box>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                    Benefits:
+                  </Typography>
+                  <List dense sx={{ mb: 2 }}>
+                    {pkg.benefits.map((benefit, idx) => (
+                      <ListItem key={idx} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <CheckIcon sx={{ fontSize: 20, color: 'success.main' }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={benefit}
+                          primaryTypographyProps={{
+                            variant: 'body2',
+                            sx: { fontSize: '0.875rem' },
+                          }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {pkg.hospitals.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        Network Hospitals:
+                      </Typography>
+                      <List dense>
+                        {pkg.hospitals.map((hospital, idx) => (
+                          <ListItem key={idx} disableGutters sx={{ py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 32 }}>
+                              <HospitalIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={hospital}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                sx: { fontSize: '0.875rem' },
+                              }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </>
+                  )}
+                  <Divider sx={{ my: 2 }} />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {pkg.phoneNumber}
+                    </Typography>
+                  </Stack>
+                </CardContent>
+                <CardActions sx={{ p: 2, pt: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    onClick={handleGetQuote}
+                    variant={pkg.popular ? 'contained' : 'outlined'}
+                    fullWidth
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 1.5,
+                    }}
+                  >
+                    Get Quote
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Contact Information */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(25, 118, 210, 0.02) 100%)',
+          }}
         >
-          <MenuItem onClick={() => { handleEdit(menuAnchor.policy); setMenuAnchor(null); }}>
-            <EditIcon sx={{ mr: 1, fontSize: 20 }} />
-            Edit Policy
-          </MenuItem>
-          {!menuAnchor.policy.premiumPaid && (
-            <MenuItem onClick={() => { handleMarkAsPaid(menuAnchor.policy); setMenuAnchor(null); }}>
-              <PaymentIcon sx={{ mr: 1, fontSize: 20 }} />
-              Mark as Paid
-            </MenuItem>
-          )}
-        </Menu>
-      )}
-
-      {/* Edit Policy Dialog */}
-      <Dialog
-        open={editDialogOpen}
-        onClose={() => {
-          setEditDialogOpen(false);
-          setSelectedPolicy(null);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Edit Policy</DialogTitle>
-        <DialogContent>
-          {selectedPolicy && (
-            <Stack spacing={3} sx={{ mt: 1 }}>
-              <Alert severity="info">
-                Editing Policy: {selectedPolicy.policyNumber} - {selectedPolicy.product?.name}
-              </Alert>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      value={editForm.status}
-                      label="Status"
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    >
-                      <MenuItem value="ACTIVE">ACTIVE</MenuItem>
-                      <MenuItem value="LAPSED">LAPSED</MenuItem>
-                      <MenuItem value="CANCELLED">CANCELLED</MenuItem>
-                      <MenuItem value="RENEWED">RENEWED</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Start Date"
-                    type="date"
-                    fullWidth
-                    value={editForm.startDate}
-                    onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="End Date"
-                    type="date"
-                    fullWidth
-                    value={editForm.endDate}
-                    onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={editForm.premiumPaid}
-                        onChange={(e) => setEditForm({ ...editForm, premiumPaid: e.target.checked })}
-                      />
-                    }
-                    label="Premium Paid"
-                  />
-                </Grid>
-              </Grid>
+          <Stack spacing={2} alignItems="center" textAlign="center">
+            <Typography variant="h5" fontWeight={700}>
+              Need Help Choosing a Package?
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600 }}>
+              Our insurance experts are available 24/7 to help you find the perfect coverage for your needs.
+            </Typography>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+              <PhoneIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+              <Typography variant="h6" fontWeight={600}>
+                +65 6123 4000
+              </Typography>
             </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setEditDialogOpen(false);
-            setSelectedPolicy(null);
-          }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={updatePolicyMutation.isPending}
-          >
-            {updatePolicyMutation.isPending ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={Boolean(toast)}
-        autoHideDuration={4000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setToast(null)}
-          severity={toast?.severity}
-          sx={{ width: '100%' }}
-        >
-          {toast?.message}
-        </Alert>
-      </Snackbar>
-    </Stack>
+            <Button
+              onClick={handleGetQuote}
+              variant="contained"
+              size="large"
+              sx={{
+                mt: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 4,
+              }}
+            >
+              Request a Custom Quote
+            </Button>
+          </Stack>
+        </Paper>
+      </Stack>
+    </Container>
   );
 }

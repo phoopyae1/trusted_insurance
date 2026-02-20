@@ -24,6 +24,7 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Container,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import {
@@ -351,18 +352,19 @@ export default function ClaimsOfficerPage() {
   };
 
   return (
-    <Stack spacing={3}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
-        }}
-      >
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={3}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 0,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
+          }}
+        >
         <Stack spacing={1.5}>
           <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
             Claims Management
@@ -716,6 +718,7 @@ export default function ClaimsOfficerPage() {
       >
         <Alert severity={toast?.severity || 'info'}>{toast?.message}</Alert>
       </Snackbar>
-    </Stack>
+      </Stack>
+    </Container>
   );
 }

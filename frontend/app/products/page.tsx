@@ -16,6 +16,7 @@ import {
   CardActions,
   Button,
   Snackbar,
+  Container,
 } from '@mui/material';
 import {
   HealthAndSafety as HealthIcon,
@@ -143,6 +144,10 @@ export default function ProductsPage() {
     router.push(`/quotes?productId=${productId}`);
   };
 
+  const handleViewDetails = (productType: string) => {
+    router.push(`/policies/${productType.toLowerCase()}`);
+  };
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -158,18 +163,19 @@ export default function ProductsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
-        }}
-      >
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={3}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 0,
+            border: '1px solid',
+            borderColor: 'divider',
+            background:
+              'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)',
+          }}
+        >
         <Stack spacing={1.5}>
           <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
             Product catalog
@@ -400,12 +406,31 @@ export default function ProductsPage() {
                       </Typography>
                     </Box>
                   </CardContent>
-                  <CardActions sx={{ p: 2, pt: 0 }}>
+                  <CardActions sx={{ p: 2, pt: 0, gap: 1 }}>
                     <Button
-                      fullWidth
+                      variant="outlined"
+                      onClick={() => handleViewDetails(product.type)}
+                      sx={{
+                        flex: 1,
+                        borderRadius: 0,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        py: 1.5,
+                        borderColor: 'divider',
+                        color: 'text.primary',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          color: 'primary.main',
+                        },
+                      }}
+                    >
+                      Detail
+                    </Button>
+                    <Button
                       variant="contained"
                       onClick={() => handleGetQuote(product.id)}
                       sx={{
+                        flex: 1,
                         borderRadius: 0,
                         textTransform: 'none',
                         fontWeight: 600,
@@ -464,6 +489,7 @@ export default function ProductsPage() {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Stack>
+      </Stack>
+    </Container>
   );
 }

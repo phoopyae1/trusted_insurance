@@ -10,12 +10,103 @@ const { NotFoundError, ValidationError } = require("../utils/errors");
 const { validateRequired, validateNumber } = require("../utils/validation");
 const { calculatePremium } = require("../services/premiumService");
 const { logAudit } = require("../services/auditLogService");
-const { validateClaim } = require("../services/claimValidationService");
+const { validateClaim, determinePlan, getCoverageLimit } = require("../services/claimValidationService");
 const { recordAtenxionTransaction } = require("../services/atenxionTransactionService");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
+
+// Helper function to get detailed status information for a claim
+function getClaimStatusInfo(claim) {
+  const status = claim.status;
+  const statusMessages = {
+    SUBMITTED: {
+      label: "Submitted",
+      message: "Your claim has been submitted and is awaiting review",
+      color: "info",
+      nextStep: "Our claims team will review your claim within 24-48 hours",
+    },
+    IN_REVIEW: {
+      label: "In Review",
+      message: "Your claim is currently being reviewed by our claims team",
+      color: "warning",
+      nextStep: "We are verifying the details and documentation. You will be notified once the review is complete",
+    },
+    APPROVED: {
+      label: "Approved",
+      message: claim.approvedAmount
+        ? `Your claim has been approved for $${claim.approvedAmount.toLocaleString()}`
+        : "Your claim has been approved",
+      color: "success",
+      nextStep: claim.paidAt
+        ? "Payment has been processed"
+        : "Payment will be processed within 5-7 business days",
+    },
+    PARTIALLY_APPROVED: {
+      label: "Partially Approved",
+      message: claim.approvedAmount
+        ? `Your claim has been partially approved for $${claim.approvedAmount.toLocaleString()} out of $${claim.amount.toLocaleString()}`
+        : "Your claim has been partially approved",
+      color: "warning",
+      nextStep: claim.decisionReason
+        ? `Reason: ${claim.decisionReason}`
+        : "Please contact us for more details about the partial approval",
+    },
+    REJECTED: {
+      label: "Rejected",
+      message: "Your claim has been rejected",
+      color: "error",
+      nextStep: claim.decisionReason
+        ? `Reason: ${claim.decisionReason}. You can contact us to appeal this decision`
+        : "Please contact us for more information about the rejection",
+    },
+    PAID: {
+      label: "Paid",
+      message: claim.approvedAmount
+        ? `Your claim has been paid. Amount: $${claim.approvedAmount.toLocaleString()}`
+        : "Your claim has been paid",
+      color: "success",
+      nextStep: claim.paidAt
+        ? `Payment was processed on ${new Date(claim.paidAt).toLocaleDateString()}`
+        : "Payment has been processed",
+    },
+  };
+
+  const baseStatusInfo = statusMessages[status] || {
+    label: status,
+    message: `Claim status: ${status}`,
+    color: "default",
+    nextStep: "Please contact us for more information",
+  };
+
+  return {
+    ...baseStatusInfo,
+    status: status,
+    submittedAt: claim.createdAt,
+    assessedAt: claim.assessedAt || null,
+    paidAt: claim.paidAt || null,
+    assessedBy: claim.assessedByUser
+      ? {
+          name: claim.assessedByUser.name,
+          email: claim.assessedByUser.email,
+        }
+      : null,
+    amountDetails: {
+      claimedAmount: claim.amount,
+      eligibleAmount: claim.eligibleAmount || null,
+      deductible: claim.deductible || null,
+      approvedAmount: claim.approvedAmount || null,
+      rejectedAmount:
+        claim.status === "REJECTED"
+          ? claim.amount
+          : claim.status === "PARTIALLY_APPROVED" && claim.approvedAmount
+          ? claim.amount - claim.approvedAmount
+          : null,
+    },
+    decisionReason: claim.decisionReason || null,
+  };
+}
 
 // POST endpoint to list quotes for customers
 router.post(
@@ -58,10 +149,35 @@ router.post(
       orderBy: { createdAt: "desc" },
     });
 
+    // Add coverage information and payment status for quotes with policies
+    const quotesWithCoverage = quotes.map((quote) => {
+      const quoteData = { ...quote };
+      
+      // If quote has a policy, determine coverage based on premium and product type
+      if (quote.policy && quote.product) {
+        const plan = determinePlan(quote.product.type, quote.policy.premium);
+        
+        quoteData.policy = {
+          ...quote.policy,
+          premiumPaid: quote.policy.premiumPaid, // Explicitly include payment status
+          paymentStatus: quote.policy.premiumPaid ? 'PAID' : 'PENDING', // Human-readable status
+        };
+        
+        if (plan) {
+          quoteData.policy.coverage = {
+            plan: plan.name,
+            limits: plan.limits,
+          };
+        }
+      }
+      
+      return quoteData;
+    });
+
     res.json({
       success: true,
-      data: quotes,
-      count: quotes.length,
+      data: quotesWithCoverage,
+      count: quotesWithCoverage.length,
     });
   })
 );
@@ -374,10 +490,19 @@ router.post(
         customerPolicyIds.includes(claim.policyId)
     );
 
+    // Enhance claims with detailed status information
+    const enhancedClaims = filteredClaims.map((claim) => {
+      const statusInfo = getClaimStatusInfo(claim);
+      return {
+        ...claim,
+        statusInfo: statusInfo,
+      };
+    });
+
     res.json({
       success: true,
-      data: filteredClaims,
-      count: filteredClaims.length,
+      data: enhancedClaims,
+      count: enhancedClaims.length,
     });
   })
 );
@@ -419,6 +544,16 @@ router.post(
     if (policy.userId !== claimUserId) {
       const { ForbiddenError } = require("../utils/errors");
       throw new ForbiddenError("You can only submit claims for policies that belong to you");
+    }
+
+    // Determine plan based on premium
+    const plan = determinePlan(policy.product.type, policy.premium);
+    let coverageLimit = null;
+    let planName = null;
+    
+    if (plan) {
+      planName = plan.name.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+      coverageLimit = getCoverageLimit(plan, policy.product.type, normalizedClaimType);
     }
 
     // Business validation using validation service
@@ -488,12 +623,32 @@ router.post(
       console.error("Failed to record Atenxion transaction for claim submission:", err);
     });
 
-    // Response
-    res.status(201).json({
+    // Response with coverage information
+    const response = {
       success: true,
       data: claim,
       message: "Claim submitted successfully",
-    });
+    };
+
+    // Include coverage limit information in response
+    if (plan && coverageLimit !== null) {
+      response.coverageInfo = {
+        plan: planName,
+        premium: policy.premium,
+        coverageLimit: coverageLimit,
+        claimAmount: claim.amount,
+        remainingCoverage: coverageLimit - claim.amount,
+      };
+    } else if (plan && coverageLimit === null) {
+      response.coverageInfo = {
+        plan: planName,
+        premium: policy.premium,
+        coverageLimit: "Unlimited",
+        claimAmount: claim.amount,
+      };
+    }
+
+    res.status(201).json(response);
   })
 );
 // // GET/POST endpoint to get customer profile
@@ -595,9 +750,28 @@ router.post(
       });
     }
 
+    // Calculate age from dateOfBirth if available
+    let age = null;
+    if (profile.dateOfBirth) {
+      const today = new Date();
+      const birthDate = new Date(profile.dateOfBirth);
+      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+      age = calculatedAge;
+    }
+
+    // Prepare response with age included
+    const responseData = {
+      ...profile,
+      age: age,
+    };
+
     res.json({
       success: true,
-      data: profile,
+      data: responseData,
     });
   })
 );

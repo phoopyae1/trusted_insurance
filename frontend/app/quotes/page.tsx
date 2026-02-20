@@ -26,6 +26,12 @@ import {
   Tabs,
   Divider,
   CircularProgress,
+  Container,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,6 +41,11 @@ import { productsApi, Product } from '../../lib/api/products';
 import { quotesApi, Quote } from '../../lib/api/quotes';
 import { useAuth } from '../../contexts/AuthContext';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import {
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Visibility as VisibilityIcon,
+} from '@mui/icons-material';
 
 const steps = ['Choose product', 'Applicant details', 'Review'];
 
@@ -115,8 +126,20 @@ export default function QuotesPage() {
   const [activeTab, setActiveTab] = useState<TabValue>('list');
   const [activeStep, setActiveStep] = useState(0);
   const [toast, setToast] = useState('');
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
+  const [decisionForm, setDecisionForm] = useState({
+    status: 'APPROVED' as 'APPROVED' | 'REJECTED',
+    reason: '',
+    premiumPaid: false,
+    startDate: '',
+    endDate: '',
+  });
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+
+  const isUnderwriter = user?.role === 'UNDERWRITER' || user?.role === 'ADMIN';
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -227,6 +250,33 @@ export default function QuotesPage() {
       }
     }
   }, [selectedProduct?.type, reset, watch]);
+
+  const updateQuoteStatusMutation = useMutation({
+    mutationFn: async ({ 
+      id, 
+      status, 
+      premiumPaid, 
+      startDate, 
+      endDate 
+    }: { 
+      id: number; 
+      status: string; 
+      premiumPaid?: boolean;
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      return quotesApi.updateStatus(id, status, premiumPaid, startDate, endDate);
+    },
+    onSuccess: () => {
+      setToast('Quote status updated successfully!');
+      setDecisionDialogOpen(false);
+      setDecisionForm({ status: 'APPROVED', reason: '', premiumPaid: false, startDate: '', endDate: '' });
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    },
+    onError: (error: Error) => {
+      setToast(error.message || 'Failed to update quote status');
+    },
+  });
 
   const submitQuoteMutation = useMutation({
     mutationFn: async (values: QuoteFormValues) => {
@@ -385,7 +435,7 @@ export default function QuotesPage() {
   const next = async () => {
     if (activeStep === 0) {
       const valid = await trigger(['productId']);
-      if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+    if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
     } else {
       // Dynamic validation based on product type
       const fields: (keyof QuoteFormValues)[] = ['age'];
@@ -425,6 +475,69 @@ export default function QuotesPage() {
         return 'warning';
       default:
         return 'default';
+    }
+  };
+
+  const handleOpenDecisionDialog = (quote: Quote) => {
+    setSelectedQuote(quote);
+    // Set default dates: start today, end 1 year from now
+    const today = new Date();
+    const oneYearLater = new Date();
+    oneYearLater.setFullYear(today.getFullYear() + 1);
+    
+    // If policy exists, use its dates; otherwise use defaults
+    const policy = quote.policy as any; // Type assertion for policy with full details
+    const defaultStartDate = policy?.startDate 
+      ? new Date(policy.startDate).toISOString().split('T')[0]
+      : today.toISOString().split('T')[0];
+    const defaultEndDate = policy?.endDate
+      ? new Date(policy.endDate).toISOString().split('T')[0]
+      : oneYearLater.toISOString().split('T')[0];
+    
+    setDecisionForm({
+      status: quote.status === 'PENDING' ? 'APPROVED' : (quote.status as 'APPROVED' | 'REJECTED'),
+      reason: '',
+      premiumPaid: policy?.premiumPaid || false,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
+    });
+    setDecisionDialogOpen(true);
+  };
+
+  const handleViewDetails = (quote: Quote) => {
+    setSelectedQuote(quote);
+    setViewDialogOpen(true);
+  };
+
+  const handleDecisionSubmit = () => {
+    // Only require reason for new approvals/rejections, not for editing existing policies
+    if ((!selectedQuote?.policy || selectedQuote.status === 'PENDING') && !decisionForm.reason.trim()) {
+      setToast('Please provide a reason for your decision');
+      return;
+    }
+    if (decisionForm.status === 'APPROVED' || (selectedQuote?.status === 'APPROVED' && selectedQuote.policy)) {
+      if (!decisionForm.startDate || !decisionForm.endDate) {
+        setToast('Please provide both start date and end date for coverage period');
+        return;
+      }
+      if (new Date(decisionForm.endDate) <= new Date(decisionForm.startDate)) {
+        setToast('End date must be after start date');
+        return;
+      }
+    }
+    if (selectedQuote) {
+      // If editing an existing approved policy, keep status as APPROVED
+      const statusToUse = selectedQuote.status === 'APPROVED' && selectedQuote.policy 
+        ? 'APPROVED' 
+        : decisionForm.status;
+      
+      updateQuoteStatusMutation.mutate({
+        id: selectedQuote.id,
+        status: statusToUse,
+        premiumPaid: (decisionForm.status === 'APPROVED' || (selectedQuote.status === 'APPROVED' && selectedQuote.policy)) ? decisionForm.premiumPaid : undefined,
+        startDate: (decisionForm.status === 'APPROVED' || (selectedQuote.status === 'APPROVED' && selectedQuote.policy)) ? decisionForm.startDate : undefined,
+        endDate: (decisionForm.status === 'APPROVED' || (selectedQuote.status === 'APPROVED' && selectedQuote.policy)) ? decisionForm.endDate : undefined,
+      });
     }
   };
 
@@ -473,12 +586,13 @@ export default function QuotesPage() {
   ];
 
   return (
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
     <Stack spacing={3}>
       <Paper
         elevation={0}
         sx={{
           p: { xs: 3, md: 4 },
-          borderRadius: 0,
+            borderRadius: 0,
           border: '1px solid',
           borderColor: 'divider',
           background:
@@ -643,7 +757,7 @@ export default function QuotesPage() {
                               </Typography>
                             </Grid>
                             <Grid item xs={12} sm={3}>
-                              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
                                 <Chip
                                   label={quote.status}
                                   sx={{
@@ -655,6 +769,60 @@ export default function QuotesPage() {
                                     minWidth: 100,
                                   }}
                                 />
+                                {isUnderwriter && (
+                                  <Stack direction="row" spacing={1}>
+                                    {quote.status === 'PENDING' && (
+                                      <>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          color="success"
+                                          startIcon={<CheckCircleIcon />}
+                                          onClick={() => handleOpenDecisionDialog(quote)}
+                                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                        >
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          color="error"
+                                          startIcon={<CancelIcon />}
+                                          onClick={() => {
+                                            setDecisionForm({ status: 'REJECTED', reason: '', premiumPaid: false, startDate: '', endDate: '' });
+                                            handleOpenDecisionDialog(quote);
+                                          }}
+                                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                        >
+                                          Reject
+                                        </Button>
+                                      </>
+                                    )}
+                                    {quote.status === 'APPROVED' && quote.policy && (
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        startIcon={<CheckCircleIcon />}
+                                        onClick={() => handleOpenDecisionDialog(quote)}
+                                        sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                      >
+                                        Edit Policy
+                                      </Button>
+                                    )}
+                                  </Stack>
+                                )}
+                                {isUnderwriter && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<VisibilityIcon />}
+                                    onClick={() => handleViewDetails(quote)}
+                                    sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                  >
+                                    View
+                                  </Button>
+                                )}
                               </Box>
                               {quote.policy && (
                                 <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -902,23 +1070,6 @@ export default function QuotesPage() {
                         </FormControl>
                       </>
                     )}
-                    {selectedProduct.type === 'TRAVEL' && (
-                      <FormControlLabel
-                        control={
-                          <Controller
-                            name="smoker"
-                            control={control}
-                            render={({ field }) => (
-                              <Checkbox 
-                                checked={field.value || false} 
-                                onChange={(e) => field.onChange(e.target.checked)} 
-                              />
-                            )}
-                          />
-                        }
-                        label="Smoker"
-                      />
-                    )}
                     {selectedProduct.type === 'LIFE' && (
                       <>
                         <FormControlLabel
@@ -1154,25 +1305,25 @@ export default function QuotesPage() {
                               helperText={formState.errors.destination?.message || 'Where are you traveling to?'}
                               required
                               placeholder="e.g., Europe, Asia, United States"
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="tripDuration"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              label="Trip duration (days)"
-                              type="number"
+                    />
+                  )}
+                />
+                <Controller
+                  name="tripDuration"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Trip duration (days)"
+                      type="number"
                               value={field.value || ''}
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                              error={Boolean(formState.errors.tripDuration)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      error={Boolean(formState.errors.tripDuration)}
                               helperText={formState.errors.tripDuration?.message || 'How many days will you be traveling?'}
                               required
                               inputProps={{ min: 1 }}
-                            />
-                          )}
-                        />
+                    />
+                  )}
+                />
                         <FormControlLabel
                           control={
                             <Controller
@@ -1409,12 +1560,12 @@ export default function QuotesPage() {
                   }}
                 >
                   <Stack spacing={2}>
-                  <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                     <strong>Product:</strong> {selectedProduct?.name || 'Not selected'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                     <strong>Type:</strong> {selectedProduct?.type || 'N/A'}
-                  </Typography>
+                </Typography>
                   <Typography variant="body2" color="text.secondary">
                     <strong>Base Premium:</strong> ${selectedProduct?.basePremium?.toFixed(2) || '0.00'}
                   </Typography>
@@ -1610,6 +1761,293 @@ export default function QuotesPage() {
       <Snackbar open={Boolean(toast)} autoHideDuration={4000} onClose={() => setToast('')}>
         <Alert severity="info">{toast}</Alert>
       </Snackbar>
+
+      {/* Decision Dialog */}
+      <Dialog open={decisionDialogOpen} onClose={() => setDecisionDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {selectedQuote?.status === 'APPROVED' && selectedQuote.policy
+            ? 'Edit Policy'
+            : decisionForm.status === 'APPROVED'
+            ? 'Approve Quote'
+            : 'Reject Quote'}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {selectedQuote && (
+              <>
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    <strong>Quote #{selectedQuote.id}</strong> - {selectedQuote.product?.name}
+                  </Typography>
+                  <Typography variant="body2">
+                    Premium: <strong>${Number(selectedQuote.premium).toFixed(2)}</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    Customer: <strong>{selectedQuote.user?.name || 'N/A'}</strong>
+                  </Typography>
+                </Alert>
+                <FormControl fullWidth required>
+                  <InputLabel>Decision</InputLabel>
+                  <Select
+                    value={decisionForm.status}
+                    label="Decision"
+                    onChange={(e) =>
+                      setDecisionForm({ ...decisionForm, status: e.target.value as 'APPROVED' | 'REJECTED' })
+                    }
+                  >
+                    <MenuItem value="APPROVED">Approve</MenuItem>
+                    <MenuItem value="REJECTED">Reject</MenuItem>
+                  </Select>
+                </FormControl>
+                {(decisionForm.status === 'APPROVED' || (selectedQuote?.status === 'APPROVED' && selectedQuote.policy)) && (
+                  <>
+                    <Divider />
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      Policy Coverage Period
+                    </Typography>
+                    <TextField
+                      label="Coverage Start Date"
+                      type="date"
+                      value={decisionForm.startDate}
+                      onChange={(e) => setDecisionForm({ ...decisionForm, startDate: e.target.value })}
+                      required
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                      helperText="Policy coverage start date"
+                    />
+                    <TextField
+                      label="Coverage End Date"
+                      type="date"
+                      value={decisionForm.endDate}
+                      onChange={(e) => setDecisionForm({ ...decisionForm, endDate: e.target.value })}
+                      required
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ min: decisionForm.startDate || new Date().toISOString().split('T')[0] }}
+                      helperText="Policy coverage end date (must be after start date)"
+                    />
+                    <Divider />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={decisionForm.premiumPaid}
+                          onChange={(e) =>
+                            setDecisionForm({ ...decisionForm, premiumPaid: e.target.checked })
+                          }
+                        />
+                      }
+                      label="Mark premium as paid"
+                    />
+                  </>
+                )}
+                {(!selectedQuote?.policy || selectedQuote.status === 'PENDING') && (
+                  <TextField
+                    label="Reason"
+                    multiline
+                    minRows={3}
+                    value={decisionForm.reason}
+                    onChange={(e) => setDecisionForm({ ...decisionForm, reason: e.target.value })}
+                    required
+                    helperText="Explain the reasoning for this decision"
+                    placeholder={
+                      decisionForm.status === 'APPROVED'
+                        ? 'e.g., All requirements met, customer qualifies for coverage...'
+                        : 'e.g., Risk assessment indicates high risk, missing documentation...'
+                    }
+                  />
+                )}
+                {selectedQuote?.policy && selectedQuote.status === 'APPROVED' && (
+                  <TextField
+                    label="Update Notes (Optional)"
+                    multiline
+                    minRows={2}
+                    value={decisionForm.reason}
+                    onChange={(e) => setDecisionForm({ ...decisionForm, reason: e.target.value })}
+                    helperText="Optional notes about the policy update"
+                    placeholder="e.g., Updated coverage dates, payment status changed..."
+                  />
+                )}
+              </>
+            )}
     </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDecisionDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleDecisionSubmit}
+            variant="contained"
+            color={selectedQuote?.status === 'APPROVED' && selectedQuote.policy ? 'primary' : decisionForm.status === 'APPROVED' ? 'success' : 'error'}
+            disabled={
+              updateQuoteStatusMutation.isPending || 
+              ((!selectedQuote?.policy || selectedQuote.status === 'PENDING') && !decisionForm.reason.trim())
+            }
+          >
+            {updateQuoteStatusMutation.isPending
+              ? 'Processing...'
+              : selectedQuote?.status === 'APPROVED' && selectedQuote.policy
+              ? 'Update Policy'
+              : decisionForm.status === 'APPROVED'
+              ? 'Approve Quote'
+              : 'Reject Quote'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Quote Details</DialogTitle>
+        <DialogContent>
+          {selectedQuote && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Quote ID
+                  </Typography>
+                  <Typography variant="body1">{selectedQuote.id}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Status
+                  </Typography>
+                  <Box>
+                    <Chip
+                      label={selectedQuote.status}
+                      size="small"
+                      color={getStatusColor(selectedQuote.status) as any}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Product
+                  </Typography>
+                  <Typography variant="body1">{selectedQuote.product?.name || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Product Type
+                  </Typography>
+                  <Typography variant="body1">{selectedQuote.product?.type || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Customer
+                  </Typography>
+                  <Typography variant="body1">{selectedQuote.user?.name || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Customer Email
+                  </Typography>
+                  <Typography variant="body1">{selectedQuote.user?.email || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Premium
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="primary.main">
+                    ${Number(selectedQuote.premium).toFixed(2)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Created At
+                  </Typography>
+                  <Typography variant="body1">
+                    {new Date(selectedQuote.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Typography>
+                </Grid>
+                {selectedQuote.policy && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Policy Number
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} color="success.main">
+                      {selectedQuote.policy.policyNumber}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+              {selectedQuote.metadata && Object.keys(selectedQuote.metadata).length > 0 && (
+                <>
+                  <Divider />
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Applicant Information
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {Object.entries(selectedQuote.metadata).map(([key, value]) => (
+                      <Grid item xs={6} key={key}>
+                        <Typography variant="caption" color="text.secondary">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                        </Typography>
+                        <Typography variant="body2">
+                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                        </Typography>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+          {isUnderwriter && (
+            <>
+              {selectedQuote?.status === 'PENDING' && (
+                <>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<CheckCircleIcon />}
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      handleOpenDecisionDialog(selectedQuote);
+                    }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      setDecisionForm({ status: 'REJECTED', reason: '', premiumPaid: false, startDate: '', endDate: '' });
+                      handleOpenDecisionDialog(selectedQuote);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+              {selectedQuote?.status === 'APPROVED' && selectedQuote.policy && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<CheckCircleIcon />}
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleOpenDecisionDialog(selectedQuote);
+                  }}
+                >
+                  Edit Policy
+                </Button>
+              )}
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+      </Stack>
+    </Container>
   );
 }
