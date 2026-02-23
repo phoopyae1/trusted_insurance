@@ -862,7 +862,16 @@ export default function ProductDetailPage() {
             <Button
               startIcon={<ArrowBackIcon />}
               onClick={() => router.push('/policies')}
-              sx={{ alignSelf: 'flex-start', textTransform: 'none', color: 'text.secondary' }}
+              variant="contained"
+              sx={{ 
+                alignSelf: 'flex-start', 
+                textTransform: 'none', 
+                backgroundColor: 'primary.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                },
+              }}
             >
               Back to All Policies
             </Button>

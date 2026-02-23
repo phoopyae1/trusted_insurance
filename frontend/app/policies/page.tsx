@@ -59,7 +59,7 @@ interface ProductPackages {
 
 const productPackages: ProductPackages = {
   HEALTH: {
-    name: 'Health Insurance',
+    name: 'Health Shield',
     icon: HealthIcon,
     description: 'Comprehensive health coverage for you and your family',
     packages: [
@@ -163,7 +163,7 @@ const productPackages: ProductPackages = {
     ],
   },
   MOTOR: {
-    name: 'Motor Insurance',
+    name: 'Motor Protect',
     icon: MotorIcon,
     description: 'Complete vehicle protection with flexible coverage options',
     packages: [
@@ -237,7 +237,7 @@ const productPackages: ProductPackages = {
     ],
   },
   LIFE: {
-    name: 'Life Insurance',
+    name: 'Life Secure',
     icon: LifeIcon,
     description: 'Secure your family\'s future with comprehensive life coverage',
     packages: [
@@ -298,7 +298,7 @@ const productPackages: ProductPackages = {
     ],
   },
   TRAVEL: {
-    name: 'Travel Insurance',
+    name: 'Travel Guard',
     icon: TravelIcon,
     description: 'Travel with confidence and peace of mind',
     packages: [
@@ -363,7 +363,7 @@ const productPackages: ProductPackages = {
     ],
   },
   FIRE: {
-    name: 'Fire Insurance',
+    name: 'Fire Shield',
     icon: FireIcon,
     description: 'Protect your property against fire damage and related perils',
     packages: [
@@ -436,7 +436,7 @@ const productPackages: ProductPackages = {
     ],
   },
   PROPERTY: {
-    name: 'Property Insurance',
+    name: 'Property Guard',
     icon: PropertyIcon,
     description: 'Comprehensive protection for your commercial and residential properties',
     packages: [
@@ -509,7 +509,7 @@ const productPackages: ProductPackages = {
     ],
   },
   HOME: {
-    name: 'Home Insurance',
+    name: 'Home Secure',
     icon: HomeIcon,
     description: 'Complete protection for your home and personal belongings',
     packages: [
@@ -582,7 +582,7 @@ const productPackages: ProductPackages = {
     ],
   },
   BUSINESS: {
-    name: 'Business Insurance',
+    name: 'Business Protect',
     icon: BusinessIcon,
     description: 'Comprehensive coverage for your business operations and assets',
     packages: [
@@ -655,7 +655,7 @@ const productPackages: ProductPackages = {
     ],
   },
   LIABILITY: {
-    name: 'Liability Insurance',
+    name: 'Liability Shield',
     icon: LiabilityIcon,
     description: 'Protect your business from third-party claims and legal liabilities',
     packages: [
@@ -936,7 +936,7 @@ export default function PoliciesPage() {
                 <CardActions sx={{ p: 2, pt: 0 }} onClick={(e) => e.stopPropagation()}>
                   <Button
                     onClick={handleGetQuote}
-                    variant={pkg.popular ? 'contained' : 'outlined'}
+                    // variant={pkg.popular ? 'contained' : 'outlined'}
                     fullWidth
                     sx={{
                       textTransform: 'none',

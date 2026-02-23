@@ -188,13 +188,13 @@ router.post(
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
-    // Accept either productId or productName, and either metadata object or flat form fields
-    const { productId, productName, userId, metadata: metadataObj, ...flatFormData } = req.body;
+    // Accept productName and either metadata object or flat form fields
+    const { productName, userId, metadata: metadataObj, ...flatFormData } = req.body;
     
-    // Validate that either productId or productName is provided
-    if (!productId && !productName) {
-      throw new ValidationError("Either productId or productName is required", [
-        { field: "productId", message: "Product ID or product name is required" }
+    // Validate that productName is provided
+    if (!productName || productName.trim() === "") {
+      throw new ValidationError("Product name is required", [
+        { field: "productName", message: "Product name is required" }
       ]);
     }
     
@@ -223,25 +223,18 @@ router.post(
       calculatedAge = age;
     }
 
-    // Find product by ID or name
-    let product = null;
-    if (productId) {
-      product = await prisma.product.findUnique({
-        where: { id: validateNumber(productId, "Product ID") }
-      });
-    } else if (productName) {
-      product = await prisma.product.findFirst({
-        where: { 
-          name: {
-            equals: productName,
-            mode: 'insensitive' // Case-insensitive search
-          }
-        },
-      });
-    }
+    // Find product by name (case-insensitive)
+    const product = await prisma.product.findFirst({
+      where: { 
+        name: {
+          equals: productName.trim(),
+          mode: 'insensitive' // Case-insensitive search
+        }
+      },
+    });
     
     if (!product) {
-      throw new NotFoundError(`Product not found. Please provide either productId or productName.`);
+      throw new NotFoundError(`Product not found. Please provide a valid product name.`);
     }
 
     // Validate required fields based on product type
@@ -344,7 +337,7 @@ router.post(
     }
 
     // Build metadata object from form fields
-    // Use the formData we extracted earlier (already excludes productId, productName, userId, metadata)
+    // Use the formData we extracted earlier (already excludes productName, userId, metadata)
     // Add calculated age to metadata (override if age was provided in request body)
     const metadata = {
       ...formData,
@@ -419,9 +412,20 @@ router.post(
       });
     }
 
+    // Use userId from request body if provided, otherwise use authenticated user's ID
+    const claimUserId = req.body.userId ? validateNumber(req.body.userId, "User ID") : authenticatedUserId;
+
+    // If userId is provided, it must match the authenticated user
+    if (req.body.userId) {
+      if (claimUserId !== authenticatedUserId) {
+        const { ForbiddenError } = require("../utils/errors");
+        throw new ForbiddenError("You are not allowed to view claims for another user");
+      }
+    }
+
     // Get all policy IDs that belong to this customer
     const customerPolicies = await prisma.policy.findMany({
-      where: { userId: authenticatedUserId },
+      where: { userId: claimUserId },
       select: { id: true },
     });
 
@@ -438,7 +442,7 @@ router.post(
 
     // Base filter: only this user's claims for their policies
     const where = {
-      userId: authenticatedUserId,
+      userId: claimUserId,
       policyId: { in: customerPolicyIds },
     };
 
@@ -486,7 +490,7 @@ router.post(
     // Final defense-in-depth check
     const filteredClaims = claims.filter(
       (claim) =>
-        claim.userId === authenticatedUserId &&
+        claim.userId === claimUserId &&
         customerPolicyIds.includes(claim.policyId)
     );
 
@@ -712,10 +716,21 @@ router.post(
   asyncHandler(async (req, res) => {
     const authenticatedUserId = req.user.id;
 
+    // Use userId from request body if provided, otherwise use authenticated user's ID
+    const profileUserId = req.body.userId ? validateNumber(req.body.userId, "User ID") : authenticatedUserId;
+
+    // If userId is provided, it must match the authenticated user
+    if (req.body.userId) {
+      if (profileUserId !== authenticatedUserId) {
+        const { ForbiddenError } = require("../utils/errors");
+        throw new ForbiddenError("You are not allowed to view profiles for another user");
+      }
+    }
+
     // Get customer profile, create if it doesn't exist
     let profile = await prisma.customerProfile.findUnique({
       where: {
-        userId: authenticatedUserId,
+        userId: profileUserId,
       },
       include: {
         user: {
@@ -734,7 +749,7 @@ router.post(
     if (!profile) {
       profile = await prisma.customerProfile.create({
         data: {
-          userId: authenticatedUserId,
+          userId: profileUserId,
         },
         include: {
           user: {

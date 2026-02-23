@@ -245,30 +245,6 @@ export default function Layout({ children }: { children: ReactNode }) {
             </IconButton>
             {isAuthenticated ? (
               <>
-                <Button
-                  component={Link}
-                  href="/dashboard"
-                  variant="outlined"
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    px: 2.5,
-                    py: 1,
-                    borderColor: 'rgba(0, 0, 0, 0.12)',
-                    color: 'text.primary',
-                    borderRadius: 3,
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      color: 'primary.main',
-                      backgroundColor: 'rgba(25, 118, 210, 0.05)',
-                    },
-                    display: { xs: 'none', sm: 'flex' },
-                    transition: 'all 0.3s ease',
-                  }}
-                >
-                  Dashboard
-                </Button>
                 <IconButton
                   onClick={handleMenu}
                   aria-label="account menu"
