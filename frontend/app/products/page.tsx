@@ -145,7 +145,7 @@ export default function ProductsPage() {
   };
 
   const handleViewDetails = (productType: string) => {
-    router.push(`/policies/${productType.toLowerCase()}`);
+    router.push(`/insurance-plans/${productType.toLowerCase()}`);
   };
 
   if (isLoading) {

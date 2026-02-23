@@ -31,12 +31,12 @@ const navLinks = [
   { label: 'Products', href: '/products' },
   { label: 'Quotes', href: '/quotes' },
   { label: 'Claims', href: '/claims' },
-  { label: 'Policies', href: '/policies' },
+  { label: 'Policies', href: '/insurance-plans' },
 ];
 
 const customerNavLinks = [
   { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Insurance Plans', href: '/policies' },
+  { label: 'Insurance Plans', href: '/insurance-plans' },
   { label: 'My Policies', href: '/my-policies' },
   { label: 'Quotes', href: '/quotes' },
   { label: 'Claims', href: '/claims' },
@@ -138,7 +138,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Stack direction="row" spacing={3} alignItems="center">
                 {[
                   { label: 'Dashboard', href: '/dashboard' },
-                  { label: 'Insurance Plans', href: '/policies' },
+                  { label: 'Insurance Plans', href: '/insurance-plans' },
                   { label: 'My Policies', href: '/my-policies' },
                   { label: 'Quotes', href: '/quotes' },
                   { label: 'Claims', href: '/claims' },
@@ -325,7 +325,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <>
                 <Button
                   component={Link}
-                  href="/policies"
+                  href="/insurance-plans"
                   variant="outlined"
                   sx={{
                     textTransform: 'none',
@@ -345,7 +345,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  Policies
+                  Insurance Plans
                 </Button>
                 <Button
                   component={Link}
