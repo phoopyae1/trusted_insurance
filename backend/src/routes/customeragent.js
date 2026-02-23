@@ -150,11 +150,37 @@ router.post(
     });
 
     // Add coverage information and payment status for quotes with policies
+    // Also extract plan information from metadata or product name
     const quotesWithCoverage = quotes.map((quote) => {
       const quoteData = { ...quote };
       
+      // Extract plan information from metadata (planName, paymentFrequency, totalAmount)
+      const planName = quote.metadata?.planName;
+      const paymentFrequency = quote.metadata?.paymentFrequency;
+      const totalAmount = quote.metadata?.totalAmount;
+      
+      // If planName is not in metadata, try to extract from product name
+      // Product names are now in format "Product Name - Plan" (e.g., "Health Shield - Basic")
+      let extractedPlanName = planName;
+      if (!extractedPlanName && quote.product) {
+        const productNameParts = quote.product.name.split(' - ');
+        if (productNameParts.length === 2) {
+          extractedPlanName = productNameParts[1]; // Extract "Basic", "Standard", etc.
+        }
+      }
+      
+      // Add plan information to quote data
+      if (extractedPlanName || paymentFrequency || totalAmount) {
+        quoteData.planInfo = {
+          planName: extractedPlanName || null,
+          paymentFrequency: paymentFrequency || null,
+          totalAmount: totalAmount || quote.premium, // Use totalAmount from metadata if available, otherwise fallback to quote.premium
+        };
+      }
+      
       // If quote has a policy, determine coverage based on premium and product type
       if (quote.policy && quote.product) {
+        // Use the policy premium to determine plan
         const plan = determinePlan(quote.product.type, quote.policy.premium);
         
         quoteData.policy = {
@@ -167,6 +193,14 @@ router.post(
           quoteData.policy.coverage = {
             plan: plan.name,
             limits: plan.limits,
+          };
+        }
+        
+        // Also include plan name from product if available
+        if (extractedPlanName) {
+          quoteData.policy.coverage = {
+            ...quoteData.policy.coverage,
+            planName: extractedPlanName,
           };
         }
       }
@@ -182,14 +216,146 @@ router.post(
   })
 );
 
+// POST endpoint to list all policies for the authenticated customer
+router.post(
+  "/policies",
+  authenticate,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    // Use userId from request body if provided, otherwise use authenticated user's ID
+    const authenticatedUserId = req.user.id;
+    const policyUserId = req.body.userId ? validateNumber(req.body.userId, "User ID") : authenticatedUserId;
+
+    // If userId is provided, it must match the authenticated user
+    if (req.body.userId) {
+      if (policyUserId !== authenticatedUserId) {
+        const { ForbiddenError } = require("../utils/errors");
+        throw new ForbiddenError("You are not allowed to view policies for another user");
+      }
+    }
+
+    // List all policies that belong to the customer
+    const where = {
+      userId: policyUserId,
+    };
+
+    // Optional filters from request body
+    if (req.body.status) {
+      where.status = req.body.status;
+    }
+
+    if (req.body.productId) {
+      where.productId = Number(req.body.productId);
+    }
+
+    if (req.body.productType) {
+      // Filter by product type - need to join with product table
+      where.product = {
+        type: req.body.productType,
+      };
+    }
+
+    const policies = await prisma.policy.findMany({
+      where,
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            basePremium: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        quote: {
+          select: {
+            id: true,
+            metadata: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Format policies with additional information
+    const formattedPolicies = policies.map((policy) => {
+      // Extract plan name from product name or quote metadata
+      let planName = null;
+      if (policy.product) {
+        const productNameParts = policy.product.name.split(' - ');
+        if (productNameParts.length === 2) {
+          planName = productNameParts[1]; // Extract "Basic", "Standard", etc.
+        }
+      }
+      
+      // Also check quote metadata for plan name
+      if (!planName && policy.quote?.metadata?.planName) {
+        planName = policy.quote.metadata.planName;
+      }
+
+      // Format coverage period
+      const startDate = policy.startDate ? new Date(policy.startDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }) : null;
+      
+      const endDate = policy.endDate ? new Date(policy.endDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }) : null;
+
+      const coveragePeriod = startDate && endDate ? `${startDate} - ${endDate}` : null;
+
+      // Determine payment status
+      const paymentStatus = policy.premiumPaid ? 'Paid' : 'Pending';
+
+      return {
+        id: policy.id,
+        policyNumber: policy.policyNumber,
+        product: {
+          id: policy.product?.id,
+          name: policy.product?.name,
+          type: policy.product?.type,
+          description: policy.product?.description,
+        },
+        premium: policy.premium,
+        startDate: policy.startDate,
+        endDate: policy.endDate,
+        coveragePeriod: coveragePeriod,
+        status: policy.status,
+        premiumPaid: policy.premiumPaid,
+        paymentStatus: paymentStatus,
+        planName: planName,
+        createdAt: policy.createdAt,
+        updatedAt: policy.updatedAt,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedPolicies,
+      count: formattedPolicies.length,
+    });
+  })
+);
+
 // POST endpoint to request/create new quotes for customers
 router.post(
   "/quotes/request",
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
-    // Accept productName and either metadata object or flat form fields
-    const { productName, userId, metadata: metadataObj, ...flatFormData } = req.body;
+    // Accept productName, planName, paymentFrequency and either metadata object or flat form fields
+    const { productName, planName, paymentFrequency, userId, metadata: metadataObj, ...flatFormData } = req.body;
     
     // Validate that productName is provided
     if (!productName || productName.trim() === "") {
@@ -197,6 +363,23 @@ router.post(
         { field: "productName", message: "Product name is required" }
       ]);
     }
+    
+    // Validate that planName is provided
+    if (!planName || planName.trim() === "") {
+      throw new ValidationError("Plan name is required", [
+        { field: "planName", message: "Plan name is required (e.g., Basic, Standard, Premium, Ultra Premium)" }
+      ]);
+    }
+    
+    // Validate that paymentFrequency is provided
+    if (!paymentFrequency || !['MONTHLY', 'YEARLY'].includes(paymentFrequency.toUpperCase())) {
+      throw new ValidationError("Payment frequency is required", [
+        { field: "paymentFrequency", message: "Payment frequency is required and must be either 'MONTHLY' or 'YEARLY'" }
+      ]);
+    }
+    
+    // Normalize payment frequency to uppercase
+    const normalizedPaymentFrequency = paymentFrequency.toUpperCase();
     
     // Use metadata object if provided, otherwise use flat form data
     const formData = metadataObj || flatFormData;
@@ -223,18 +406,49 @@ router.post(
       calculatedAge = age;
     }
 
-    // Find product by name (case-insensitive)
-    const product = await prisma.product.findFirst({
+    // Construct full product name with plan (e.g., "Health Shield - Basic")
+    const fullProductName = `${productName.trim()} - ${planName.trim()}`;
+    
+    // Find product by full name with plan
+    let product = await prisma.product.findFirst({
       where: { 
         name: {
-          equals: productName.trim(),
+          equals: fullProductName,
           mode: 'insensitive' // Case-insensitive search
         }
       },
     });
     
     if (!product) {
-      throw new NotFoundError(`Product not found. Please provide a valid product name.`);
+      // If not found with plan, try to find by product name only (for backward compatibility)
+      const productWithoutPlan = await prisma.product.findFirst({
+        where: { 
+          name: {
+            equals: productName.trim(),
+            mode: 'insensitive' // Case-insensitive search
+          }
+        },
+      });
+      
+      if (!productWithoutPlan) {
+        throw new NotFoundError(`Product "${productName}" with plan "${planName}" not found. Please provide a valid product name and plan.`);
+      }
+      
+      // If product exists without plan suffix, use it but log a warning
+      // This is for backward compatibility with old products
+      console.warn(`Product found without plan suffix: ${productWithoutPlan.name}. Using plan "${planName}" from request.`);
+      product = productWithoutPlan;
+    } else {
+      // Verify plan matches if product name includes plan
+      const productNameParts = product.name.split(' - ');
+      if (productNameParts.length === 2) {
+        const productPlanName = productNameParts[1].trim();
+        if (productPlanName.toLowerCase() !== planName.trim().toLowerCase()) {
+          throw new ValidationError("Plan mismatch", [
+            { field: "planName", message: `Selected plan "${planName}" does not match product plan "${productPlanName}"` }
+          ]);
+        }
+      }
     }
 
     // Validate required fields based on product type
@@ -337,15 +551,30 @@ router.post(
     }
 
     // Build metadata object from form fields
-    // Use the formData we extracted earlier (already excludes productName, userId, metadata)
-    // Add calculated age to metadata (override if age was provided in request body)
+    // Use the formData we extracted earlier (already excludes productName, planName, paymentFrequency, userId, metadata)
+    // Add calculated age, planName, and paymentFrequency to metadata
     const metadata = {
       ...formData,
-      age: calculatedAge // Always use calculated age from profile
+      age: calculatedAge, // Always use calculated age from profile
+      planName: planName.trim(), // Store selected plan name
+      paymentFrequency: normalizedPaymentFrequency, // Store payment frequency (MONTHLY or YEARLY)
     };
 
-    // Calculate premium based on product and metadata
-    const premium = calculatePremium(product.basePremium, metadata);
+    // Calculate total amount based on plan and payment frequency
+    // Use product.basePremium as the yearly premium for the selected plan
+    let totalAmount = product.basePremium; // Yearly premium for the plan
+    
+    if (normalizedPaymentFrequency === 'MONTHLY') {
+      // Monthly payment: (yearly premium / 12) + $10 per month
+      totalAmount = (product.basePremium / 12) + 10;
+    }
+    
+    // Add totalAmount to metadata
+    metadata.totalAmount = totalAmount;
+
+    // Use totalAmount as the premium (instead of calculating from basePremium with multipliers)
+    // The plan premium is already set in basePremium, we just need to adjust for payment frequency
+    const premium = totalAmount;
 
     // Create quote with PENDING status (customers can't set status)
     // Store all form fields as metadata

@@ -46,12 +46,73 @@ import {
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
+import Image from 'next/image';
 
 const steps = ['Choose product', 'Applicant details', 'Review'];
+
+// Product packages data (simplified for quotes)
+const productPackages: Record<string, { name: string; premium: number }[]> = {
+  HEALTH: [
+    { name: 'Basic', premium: 1200 },
+    { name: 'Standard', premium: 2400 },
+    { name: 'Premium', premium: 3600 },
+    { name: 'Ultra Premium', premium: 6000 },
+  ],
+  MOTOR: [
+    { name: 'Basic', premium: 800 },
+    { name: 'Standard', premium: 1500 },
+    { name: 'Premium', premium: 2500 },
+    { name: 'Ultra Premium', premium: 4000 },
+  ],
+  LIFE: [
+    { name: 'Basic', premium: 1500 },
+    { name: 'Standard', premium: 3000 },
+    { name: 'Premium', premium: 5000 },
+    { name: 'Ultra Premium', premium: 10000 },
+  ],
+  TRAVEL: [
+    { name: 'Basic', premium: 50 },
+    { name: 'Standard', premium: 100 },
+    { name: 'Premium', premium: 200 },
+    { name: 'Ultra Premium', premium: 400 },
+  ],
+  FIRE: [
+    { name: 'Basic', premium: 600 },
+    { name: 'Standard', premium: 1200 },
+    { name: 'Premium', premium: 2000 },
+    { name: 'Ultra Premium', premium: 3500 },
+  ],
+  PROPERTY: [
+    { name: 'Basic', premium: 800 },
+    { name: 'Standard', premium: 1500 },
+    { name: 'Premium', premium: 2800 },
+    { name: 'Ultra Premium', premium: 5000 },
+  ],
+  HOME: [
+    { name: 'Basic', premium: 700 },
+    { name: 'Standard', premium: 1400 },
+    { name: 'Premium', premium: 2500 },
+    { name: 'Ultra Premium', premium: 4500 },
+  ],
+  BUSINESS: [
+    { name: 'Basic', premium: 1500 },
+    { name: 'Standard', premium: 3000 },
+    { name: 'Premium', premium: 6000 },
+    { name: 'Ultra Premium', premium: 12000 },
+  ],
+  LIABILITY: [
+    { name: 'Basic', premium: 1000 },
+    { name: 'Standard', premium: 2000 },
+    { name: 'Premium', premium: 4000 },
+    { name: 'Ultra Premium', premium: 8000 },
+  ],
+};
 
 // Unified schema with conditional validation
 const quoteSchema = z.object({
   productId: z.number({ required_error: 'Select a product' }).min(1, 'Select a product'),
+  planName: z.string().min(1, 'Select a plan'),
+  paymentFrequency: z.enum(['MONTHLY', 'YEARLY'], { required_error: 'Select payment frequency' }),
   age: z.number().min(18, 'Minimum age is 18').max(100, 'Maximum age is 100'),
   smoker: z.boolean().optional(),
   vehicleValue: z.number().optional(),
@@ -89,6 +150,8 @@ const quoteSchema = z.object({
 
 type QuoteFormValues = {
   productId: number;
+  planName: string;
+  paymentFrequency: 'MONTHLY' | 'YEARLY';
   age: number;
   smoker?: boolean;
   vehicleValue?: number;
@@ -156,6 +219,8 @@ export default function QuotesPage() {
     resolver: zodResolver(quoteSchema),
     defaultValues: {
       productId: 0,
+      planName: '',
+      paymentFrequency: 'YEARLY',
       age: 30,
       smoker: false,
       vehicleValue: 0,
@@ -189,11 +254,43 @@ export default function QuotesPage() {
     [products, selectedProductId]
   );
 
+  const selectedPlanName = watch('planName');
+  const selectedPaymentFrequency = watch('paymentFrequency');
+  
+  // Get available plans for selected product
+  const availablePlans = useMemo(() => {
+    if (!selectedProduct?.type) return [];
+    return productPackages[selectedProduct.type] || [];
+  }, [selectedProduct?.type]);
+
+  // Get selected plan details
+  const selectedPlan = useMemo(() => {
+    if (!selectedPlanName || !availablePlans.length) return null;
+    return availablePlans.find(p => p.name === selectedPlanName);
+  }, [selectedPlanName, availablePlans]);
+
+  // Calculate total amount
+  const calculateTotal = useMemo(() => {
+    if (!selectedPlan) return 0;
+    const yearlyPremium = selectedPlan.premium;
+    
+    if (selectedPaymentFrequency === 'MONTHLY') {
+      // Monthly payment: (yearly premium / 12) + $10 per month
+      return (yearlyPremium / 12) + 10;
+    } else {
+      // Yearly payment: just the yearly premium
+      return yearlyPremium;
+    }
+  }, [selectedPlan, selectedPaymentFrequency]);
+
   // Clear irrelevant fields when product type changes
   useEffect(() => {
     if (selectedProduct?.type) {
       const currentValues = watch();
       const updatedValues: Partial<QuoteFormValues> = { ...currentValues };
+      
+      // Reset plan selection when product changes
+      updatedValues.planName = '';
       
       // Clear fields that don't apply to the selected product
       if (selectedProduct.type !== 'MOTOR') {
@@ -283,9 +380,25 @@ export default function QuotesPage() {
       if (!isAuthenticated) {
         throw new Error('Please log in to submit a quote');
       }
+      
+      // Calculate total amount
+      const availablePlansForProduct = productPackages[selectedProduct?.type || ''] || [];
+      const selectedPlanForCalc = availablePlansForProduct.find(p => p.name === values.planName);
+      let calculatedTotal = 0;
+      if (selectedPlanForCalc) {
+        if (values.paymentFrequency === 'MONTHLY') {
+          calculatedTotal = (selectedPlanForCalc.premium / 12) + 10;
+        } else {
+          calculatedTotal = selectedPlanForCalc.premium;
+        }
+      }
+      
       // Only include relevant fields in metadata based on product type
       const metadata: any = {
             age: values.age,
+            planName: values.planName,
+            paymentFrequency: values.paymentFrequency,
+            totalAmount: calculatedTotal,
       };
       
       if (values.smoker !== undefined) {
@@ -434,7 +547,7 @@ export default function QuotesPage() {
 
   const next = async () => {
     if (activeStep === 0) {
-      const valid = await trigger(['productId']);
+      const valid = await trigger(['productId', 'planName', 'paymentFrequency']);
     if (valid) setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
     } else {
       // Dynamic validation based on product type
@@ -586,29 +699,87 @@ export default function QuotesPage() {
   ];
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
-    <Stack spacing={3}>
-      <Paper
-        elevation={0}
+    <>
+      {/* Hero Section */}
+      <Box
         sx={{
-          p: { xs: 3, md: 4 },
-            borderRadius: 0,
-          border: '1px solid',
-          borderColor: 'divider',
-          background:
-            'radial-gradient(circle at top left, rgba(0, 102, 204, 0.12), transparent 55%), radial-gradient(circle at top right, rgba(0, 191, 166, 0.12), transparent 55%)'
+          position: 'relative',
+          width: '100%',
+          height: { xs: 300, md: 400 },
+          mb: 4,
+          overflow: 'hidden',
         }}
       >
-        <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 3 }}>
-          Insurance Quotes
-        </Typography>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Manage your insurance quotes
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          View your quote requests and create new quotes for insurance coverage.
-        </Typography>
-      </Paper>
+        <Image
+          src="/hero2.jpeg"
+          alt="Insurance Quotes"
+          fill
+          style={{
+            objectFit: 'cover',
+          }}
+          priority
+        />
+        {/* Dark overlay for better text readability */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%)',
+          }}
+        />
+        {/* Hero Content */}
+        <Container
+          maxWidth={false}
+          sx={{
+            position: 'relative',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            maxWidth: '80%',
+            width: '100%',
+            zIndex: 2,
+          }}
+        >
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{
+                color: 'white',
+                letterSpacing: 3,
+                mb: 1,
+                display: 'block',
+              }}
+            >
+              Insurance Quotes
+            </Typography>
+            <Typography
+              variant="h3"
+              fontWeight={700}
+              sx={{
+                color: 'white',
+                mb: 2,
+              }}
+            >
+              Manage your insurance quotes
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                maxWidth: 600,
+              }}
+            >
+              View your quote requests and create new quotes for insurance coverage.
+            </Typography>
+          </Box>
+        </Container>
+      </Box>
+
+      <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
+    <Stack spacing={3}>
 
       <Paper
         elevation={0}
@@ -731,30 +902,45 @@ export default function QuotesPage() {
                             <Grid item xs={12} sm={2}>
                               <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem' }}>
                                 Quote #{quote.id}
-                              </Typography>
+        </Typography>
                               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                 {new Date(quote.createdAt).toLocaleDateString('en-US', { 
                                   year: 'numeric', 
                                   month: 'short', 
                                   day: 'numeric' 
                                 })}
-                              </Typography>
+        </Typography>
                             </Grid>
                             <Grid item xs={12} sm={4}>
                               <Typography variant="h6" fontWeight={600} gutterBottom>
                                 {quote.product?.name || 'Unknown Product'}
-                              </Typography>
+        </Typography>
                               <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                 {quote.product?.type || 'N/A'}
                               </Typography>
                             </Grid>
                             <Grid item xs={12} sm={3}>
-                              <Typography variant="h5" fontWeight={700} color="primary.main">
-                                ${quote.premium ? Number(quote.premium).toFixed(2) : '0.00'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Monthly Premium
-                              </Typography>
+                              {(() => {
+                                // Get premium from metadata if available (new quotes with plan selection)
+                                const metadata = quote.metadata as any;
+                                const totalAmount = metadata?.totalAmount;
+                                const paymentFrequency = metadata?.paymentFrequency;
+                                
+                                // Use totalAmount from metadata if available, otherwise use quote.premium
+                                const displayPremium = totalAmount ? Number(totalAmount) : (quote.premium ? Number(quote.premium) : 0);
+                                const isMonthly = paymentFrequency === 'MONTHLY';
+                                
+                                return (
+                                  <>
+                                    <Typography variant="h5" fontWeight={700} color="primary.main">
+                                      ${displayPremium.toFixed(2)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {isMonthly ? 'Monthly Premium' : paymentFrequency === 'YEARLY' ? 'Yearly Premium' : 'Premium'}
+                                    </Typography>
+                                  </>
+                                );
+                              })()}
                             </Grid>
                             <Grid item xs={12} sm={3}>
                               <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
@@ -840,7 +1026,7 @@ export default function QuotesPage() {
                               )}
                             </Grid>
                           </Grid>
-                        </Paper>
+      </Paper>
                       );
                     })}
                   </Stack>
@@ -887,6 +1073,7 @@ export default function QuotesPage() {
             </Box>
 
             {activeStep === 0 && (
+              <>
               <FormControl fullWidth error={Boolean(formState.errors.productId)}>
                 <InputLabel id="product-label">Product</InputLabel>
                 {isLoading ? (
@@ -904,7 +1091,7 @@ export default function QuotesPage() {
                       >
                         {products.map((product) => (
                           <MenuItem value={product.id} key={product.id}>
-                            {product.name} — ${product.basePremium}
+                              {product.name}
                           </MenuItem>
                         ))}
                       </Select>
@@ -917,6 +1104,102 @@ export default function QuotesPage() {
                   </Typography>
                 )}
               </FormControl>
+
+                {selectedProduct && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <FormControl fullWidth required error={Boolean(formState.errors.planName)}>
+                    <InputLabel id="plan-label">Select Plan</InputLabel>
+                    <Controller
+                      name="planName"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          labelId="plan-label"
+                          label="Select Plan"
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                        >
+                          {availablePlans.map((plan) => (
+                            <MenuItem value={plan.name} key={plan.name}>
+                              {plan.name} - ${plan.premium.toLocaleString()}/year
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      )}
+                    />
+                    {formState.errors.planName && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                        {formState.errors.planName.message}
+                      </Typography>
+                    )}
+                  </FormControl>
+
+                  {selectedPlan && (
+                    <>
+                      <FormControl fullWidth required error={Boolean(formState.errors.paymentFrequency)} sx={{ mt: 2 }}>
+                        <InputLabel id="payment-frequency-label">Payment Frequency</InputLabel>
+                        <Controller
+                          name="paymentFrequency"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              labelId="payment-frequency-label"
+                              label="Payment Frequency"
+                              value={field.value || 'YEARLY'}
+                              onChange={field.onChange}
+                            >
+                              <MenuItem value="YEARLY">Yearly (${selectedPlan.premium.toLocaleString()}/year)</MenuItem>
+                              <MenuItem value="MONTHLY">Monthly (${((selectedPlan.premium / 12) + 10).toFixed(2)}/month)</MenuItem>
+                            </Select>
+                          )}
+                        />
+                        {formState.errors.paymentFrequency && (
+                          <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                            {formState.errors.paymentFrequency.message}
+                          </Typography>
+                        )}
+                      </FormControl>
+
+                      {selectedPaymentFrequency && (
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            mt: 3,
+                            p: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            backgroundColor: 'rgba(25, 118, 210, 0.05)',
+                          }}
+                        >
+                          <Stack spacing={1}>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              Quote Summary
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Plan: <strong>{selectedPlanName}</strong>
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Payment: <strong>{selectedPaymentFrequency === 'MONTHLY' ? 'Monthly' : 'Yearly'}</strong>
+                            </Typography>
+                            <Divider />
+                            <Typography variant="h6" fontWeight={700} color="primary.main">
+                              Total Amount: ${calculateTotal.toFixed(2)}
+                              {selectedPaymentFrequency === 'MONTHLY' ? '/month' : '/year'}
+                            </Typography>
+                            {selectedPaymentFrequency === 'MONTHLY' && (
+                              <Typography variant="caption" color="text.secondary">
+                                * Includes $10 monthly processing fee
+                              </Typography>
+                            )}
+                          </Stack>
+                        </Paper>
+                      )}
+                    </>
+                  )}
+                </>
+                )}
+              </>
             )}
 
             {activeStep === 1 && (
@@ -1566,9 +1849,22 @@ export default function QuotesPage() {
                 <Typography variant="body2" color="text.secondary">
                     <strong>Type:</strong> {selectedProduct?.type || 'N/A'}
                 </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Base Premium:</strong> ${selectedProduct?.basePremium?.toFixed(2) || '0.00'}
+                <Typography variant="body2" color="text.secondary">
+                    <strong>Plan:</strong> {watch('planName') || 'Not selected'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    <strong>Payment Frequency:</strong> {watch('paymentFrequency') === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                </Typography>
+                <Divider />
+                <Typography variant="h6" fontWeight={700} color="primary.main">
+                    <strong>Total Amount:</strong> ${calculateTotal.toFixed(2)}
+                    {watch('paymentFrequency') === 'MONTHLY' ? '/month' : '/year'}
+                </Typography>
+                {watch('paymentFrequency') === 'MONTHLY' && (
+                  <Typography variant="caption" color="text.secondary">
+                    * Includes $10 monthly processing fee
                   </Typography>
+                )}
                   <Typography variant="body2" color="text.secondary">
                     <strong>Age:</strong> {watch('age')}
                   </Typography>
@@ -1780,7 +2076,14 @@ export default function QuotesPage() {
                     <strong>Quote #{selectedQuote.id}</strong> - {selectedQuote.product?.name}
                   </Typography>
                   <Typography variant="body2">
-                    Premium: <strong>${Number(selectedQuote.premium).toFixed(2)}</strong>
+                    Premium: <strong>${(() => {
+                      const metadata = selectedQuote.metadata as any;
+                      const totalAmount = metadata?.totalAmount;
+                      const paymentFrequency = metadata?.paymentFrequency;
+                      const displayPremium = totalAmount ? Number(totalAmount) : (selectedQuote.premium ? Number(selectedQuote.premium) : 0);
+                      const isMonthly = paymentFrequency === 'MONTHLY';
+                      return `${displayPremium.toFixed(2)}${isMonthly ? '/month' : paymentFrequency === 'YEARLY' ? '/year' : ''}`;
+                    })()}</strong>
                   </Typography>
                   <Typography variant="body2">
                     Customer: <strong>{selectedQuote.user?.name || 'N/A'}</strong>
@@ -1948,7 +2251,14 @@ export default function QuotesPage() {
                     Premium
                   </Typography>
                   <Typography variant="body1" fontWeight={600} color="primary.main">
-                    ${Number(selectedQuote.premium).toFixed(2)}
+                    {(() => {
+                      const metadata = selectedQuote.metadata as any;
+                      const totalAmount = metadata?.totalAmount;
+                      const paymentFrequency = metadata?.paymentFrequency;
+                      const displayPremium = totalAmount ? Number(totalAmount) : (selectedQuote.premium ? Number(selectedQuote.premium) : 0);
+                      const isMonthly = paymentFrequency === 'MONTHLY';
+                      return `$${displayPremium.toFixed(2)}${isMonthly ? '/month' : paymentFrequency === 'YEARLY' ? '/year' : ''}`;
+                    })()}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -2049,5 +2359,6 @@ export default function QuotesPage() {
       </Dialog>
       </Stack>
     </Container>
+    </>
   );
 }

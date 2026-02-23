@@ -100,11 +100,11 @@ const trustPoints = [
 // Hero carousel images
 const heroImages = [
   {
-    src: '/hero-10-1-1.jpeg',
+    src: '/hero1',
     alt: 'Insurance Protection',
   },
   {
-    src: '/hero-10-5-2.jpeg',
+    src: '/hero2.jpeg',
     alt: 'Secure Coverage',
   },
   {
@@ -112,7 +112,7 @@ const heroImages = [
     alt: 'Insurance Solutions',
   },
   {
-    src: '/1200x630.jpg',
+    src: '/insurance4.jpg',
     alt: 'Comprehensive Coverage',
   },
 ];

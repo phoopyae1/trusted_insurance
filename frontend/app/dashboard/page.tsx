@@ -135,7 +135,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+    <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
       <Stack spacing={3}>
         {/* Header */}
         <Paper

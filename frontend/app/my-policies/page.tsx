@@ -41,7 +41,7 @@ export default function MyPoliciesPage() {
 
   if (!isAuthenticated) {
     return (
-      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
         <Alert severity="info">Please log in to view your policies</Alert>
       </Container>
     );
@@ -49,7 +49,7 @@ export default function MyPoliciesPage() {
 
   if (isLoading) {
     return (
-      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -59,7 +59,7 @@ export default function MyPoliciesPage() {
 
   if (error) {
     return (
-      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+      <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
         <Alert severity="error">Failed to load policies. Please try again later.</Alert>
       </Container>
     );
@@ -94,7 +94,7 @@ export default function MyPoliciesPage() {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}>
+    <Container maxWidth={false} sx={{ py: { xs: 2, md: 3 }, maxWidth: '80%', width: '100%' }}>
       <Stack spacing={4}>
         {/* Header */}
         <Paper

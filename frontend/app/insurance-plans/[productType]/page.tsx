@@ -59,7 +59,7 @@ interface ProductInfo {
 
 const productData: { [key: string]: ProductInfo } = {
   health: {
-    name: 'Health Insurance',
+    name: 'Health Shield',
     icon: HealthIcon,
     description: 'Comprehensive health coverage for you and your family',
     detailedDescription: 'Our Health Insurance plans provide extensive medical coverage including inpatient and outpatient services, emergency care, and access to Singapore\'s premier healthcare facilities. Choose from our range of packages designed to meet different healthcare needs and budgets.',
