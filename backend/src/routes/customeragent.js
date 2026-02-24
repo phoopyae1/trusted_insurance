@@ -93,12 +93,20 @@ function getClaimStatusInfo(claim) {
         }
       : null,
     amountDetails: {
-      claimedAmount: claim.amount,
-      eligibleAmount: claim.eligibleAmount || null,
-      deductible: claim.deductible || null,
-      approvedAmount: claim.approvedAmount || null,
-      rejectedAmount:
-        claim.status === "REJECTED"
+      claimedAmount: `$${claim.amount.toFixed(2)}`,
+      claimedAmountNumeric: claim.amount,
+      eligibleAmount: claim.eligibleAmount ? `$${claim.eligibleAmount.toFixed(2)}` : null,
+      eligibleAmountNumeric: claim.eligibleAmount || null,
+      deductible: claim.deductible ? `$${claim.deductible.toFixed(2)}` : null,
+      deductibleNumeric: claim.deductible || null,
+      approvedAmount: claim.approvedAmount ? `$${claim.approvedAmount.toFixed(2)}` : null,
+      approvedAmountNumeric: claim.approvedAmount || null,
+      rejectedAmount: claim.status === "REJECTED"
+          ? `$${claim.amount.toFixed(2)}`
+          : claim.status === "PARTIALLY_APPROVED" && claim.approvedAmount
+          ? `$${(claim.amount - claim.approvedAmount).toFixed(2)}`
+          : null,
+      rejectedAmountNumeric: claim.status === "REJECTED"
           ? claim.amount
           : claim.status === "PARTIALLY_APPROVED" && claim.approvedAmount
           ? claim.amount - claim.approvedAmount
@@ -114,10 +122,22 @@ router.post(
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
+    // Use userId from request body if provided, otherwise use authenticated user's ID
+    const authenticatedUserId = req.user.id;
+    const quoteUserId = req.body.userId ? validateNumber(req.body.userId, "User ID") : authenticatedUserId;
+
+    // If userId is provided, it must match the authenticated user
+    if (req.body.userId) {
+      if (quoteUserId !== authenticatedUserId) {
+        const { ForbiddenError } = require("../utils/errors");
+        throw new ForbiddenError("You are not allowed to view quotes for another user");
+      }
+    }
+
     // List all quotes that the authenticated customer has requested/bought
     // Only shows quotes belonging to the authenticated customer
     const where = {
-      userId: req.user.id,
+      userId: quoteUserId,
     };
 
     // Optional filters from request body
@@ -152,7 +172,11 @@ router.post(
     // Add coverage information and payment status for quotes with policies
     // Also extract plan information from metadata or product name
     const quotesWithCoverage = quotes.map((quote) => {
-      const quoteData = { ...quote };
+      const quoteData = { 
+        ...quote,
+        premium: `$${quote.premium.toFixed(2)}`,
+        premiumNumeric: quote.premium, // Keep numeric value for calculations
+      };
       
       // Extract plan information from metadata (planName, paymentFrequency, totalAmount)
       const planName = quote.metadata?.planName;
@@ -171,10 +195,12 @@ router.post(
       
       // Add plan information to quote data
       if (extractedPlanName || paymentFrequency || totalAmount) {
+        const planTotalAmount = totalAmount || quote.premium;
         quoteData.planInfo = {
           planName: extractedPlanName || null,
           paymentFrequency: paymentFrequency || null,
-          totalAmount: totalAmount || quote.premium, // Use totalAmount from metadata if available, otherwise fallback to quote.premium
+          totalAmount: `$${planTotalAmount.toFixed(2)}`,
+          totalAmountNumeric: planTotalAmount, // Keep numeric value for calculations
         };
       }
       
@@ -185,6 +211,8 @@ router.post(
         
         quoteData.policy = {
           ...quote.policy,
+          premium: `$${quote.policy.premium.toFixed(2)}`,
+          premiumNumeric: quote.policy.premium, // Keep numeric value for calculations
           premiumPaid: quote.policy.premiumPaid, // Explicitly include payment status
           paymentStatus: quote.policy.premiumPaid ? 'PAID' : 'PENDING', // Human-readable status
         };
@@ -327,7 +355,8 @@ router.post(
           type: policy.product?.type,
           description: policy.product?.description,
         },
-        premium: policy.premium,
+        premium: `$${policy.premium.toFixed(2)}`,
+        premiumNumeric: policy.premium, // Keep numeric value for calculations
         startDate: policy.startDate,
         endDate: policy.endDate,
         coveragePeriod: coveragePeriod,
@@ -437,10 +466,35 @@ router.post(
         throw new NotFoundError(`Product "${productName}" with plan "${planName}" not found. Please provide a valid product name and plan.`);
       }
       
-      // If product exists without plan suffix, use it but log a warning
-      // This is for backward compatibility with old products
-      console.warn(`Product found without plan suffix: ${productWithoutPlan.name}. Using plan "${planName}" from request.`);
-      product = productWithoutPlan;
+      // Plan premium mapping for common products (fallback for old products without plan suffix)
+      const planPremiumMap = {
+        'Health Shield': { Basic: 1200, Standard: 2400, Premium: 3600, 'Ultra Premium': 6000 },
+        'Motor Protect': { Basic: 800, Standard: 1500, Premium: 2500, 'Ultra Premium': 4000 },
+        'Life Secure': { Basic: 1500, Standard: 3000, Premium: 5000, 'Ultra Premium': 10000 },
+        'Travel Guard': { Basic: 50, Standard: 100, Premium: 200, 'Ultra Premium': 400 },
+        'Fire Shield': { Basic: 600, Standard: 1200, Premium: 2000, 'Ultra Premium': 3500 },
+        'Property Guard': { Basic: 800, Standard: 1500, Premium: 2800, 'Ultra Premium': 5000 },
+        'Home Secure': { Basic: 700, Standard: 1400, Premium: 2500, 'Ultra Premium': 4500 },
+        'Business Protect': { Basic: 1500, Standard: 3000, Premium: 6000, 'Ultra Premium': 12000 },
+        'Liability Shield': { Basic: 1000, Standard: 2000, Premium: 4000, 'Ultra Premium': 8000 },
+      };
+      
+      const productKey = productName.trim();
+      const planKey = planName.trim();
+      
+      // If we have a premium mapping for this product and plan, use it
+      if (planPremiumMap[productKey] && planPremiumMap[productKey][planKey]) {
+        // Override basePremium with the correct plan premium
+        product = {
+          ...productWithoutPlan,
+          basePremium: planPremiumMap[productKey][planKey],
+          name: `${productKey} - ${planKey}` // Update name to include plan
+        };
+        console.warn(`Using plan premium mapping for "${productKey}" plan "${planKey}": $${product.basePremium}`);
+      } else {
+        // If no mapping exists, reject the request
+        throw new NotFoundError(`Product "${productName}" with plan "${planName}" not found. Found product "${productWithoutPlan.name}" without plan suffix. Please use the full product name with plan (e.g., "Health Shield - Basic") or ensure products are seeded with plan suffixes.`);
+      }
     } else {
       // Verify plan matches if product name includes plan
       const productNameParts = product.name.split(' - ');
@@ -563,20 +617,29 @@ router.post(
       paymentFrequency: normalizedPaymentFrequency, // Store payment frequency (MONTHLY or YEARLY)
     };
 
-    // Calculate total amount based on plan and payment frequency
+    // Calculate pricing based on plan and payment frequency
     // Use product.basePremium as the yearly premium for the selected plan
-    let totalAmount = product.basePremium; // Yearly premium for the plan
+    const yearlyPremium = product.basePremium; // Yearly premium if paid once (e.g., $1200)
+    const monthlyPremium = (yearlyPremium / 12) + 10; // Monthly premium: (yearly / 12) + $10 extra per month (e.g., $110)
+    const totalYearlyIfMonthly = monthlyPremium * 12; // Total cost if paying monthly for a year (e.g., $1320)
     
+    // Determine the total amount based on selected payment frequency
+    let totalAmount;
     if (normalizedPaymentFrequency === 'MONTHLY') {
       // Monthly payment: (yearly premium / 12) + $10 per month
-      totalAmount = (product.basePremium / 12) + 10;
+      totalAmount = monthlyPremium;
+    } else {
+      // Yearly payment: full yearly premium (one-time payment)
+      totalAmount = yearlyPremium;
     }
     
-    // Add totalAmount to metadata
+    // Add pricing information to metadata
     metadata.totalAmount = totalAmount;
+    metadata.yearlyPremium = yearlyPremium;
+    metadata.monthlyPremium = monthlyPremium;
+    metadata.totalYearlyIfMonthly = totalYearlyIfMonthly;
 
-    // Use totalAmount as the premium (instead of calculating from basePremium with multipliers)
-    // The plan premium is already set in basePremium, we just need to adjust for payment frequency
+    // Use totalAmount as the premium (based on selected payment frequency)
     const premium = totalAmount;
 
     // Create quote with PENDING status (customers can't set status)
@@ -616,9 +679,34 @@ router.post(
       },
     });
 
+    // Calculate savings (always the difference between monthly yearly total and yearly premium)
+    const savingsAmount = totalYearlyIfMonthly - yearlyPremium;
+    
+    // Prepare response with pricing breakdown (all currency values formatted with $)
+    const responseData = {
+      ...quote,
+      pricing: {
+        yearlyPremium: `$${yearlyPremium.toFixed(2)}`,
+        monthlyPremium: `$${monthlyPremium.toFixed(2)}`,
+        totalYearlyIfMonthly: `$${totalYearlyIfMonthly.toFixed(2)}`,
+        selectedFrequency: normalizedPaymentFrequency,
+        totalAmount: `$${totalAmount.toFixed(2)}`,
+        savings: `$${savingsAmount.toFixed(2)}`,
+        description: normalizedPaymentFrequency === 'MONTHLY' 
+          ? `$${monthlyPremium.toFixed(2)} per month (Total: $${totalYearlyIfMonthly.toFixed(2)} per year. Save $${savingsAmount.toFixed(2)} by paying yearly: $${yearlyPremium.toFixed(2)})`
+          : `$${yearlyPremium.toFixed(2)} per year (one-time payment). Monthly option: $${monthlyPremium.toFixed(2)}/month (Total: $${totalYearlyIfMonthly.toFixed(2)} per year)`,
+        // Also include numeric values for calculations if needed
+        yearlyPremiumNumeric: yearlyPremium,
+        monthlyPremiumNumeric: monthlyPremium,
+        totalYearlyIfMonthlyNumeric: totalYearlyIfMonthly,
+        totalAmountNumeric: totalAmount,
+        savingsNumeric: savingsAmount
+      }
+    };
+
     res.status(201).json({
       success: true,
-      data: quote,
+      data: responseData,
       message: "Quote request submitted successfully",
     });
   })
@@ -859,10 +947,23 @@ router.post(
       console.error("Failed to record Atenxion transaction for claim submission:", err);
     });
 
+    // Format claim data with currency symbols
+    const formattedClaim = {
+      ...claim,
+      amount: `$${claim.amount.toFixed(2)}`,
+      amountNumeric: claim.amount,
+      eligibleAmount: claim.eligibleAmount ? `$${claim.eligibleAmount.toFixed(2)}` : null,
+      eligibleAmountNumeric: claim.eligibleAmount || null,
+      deductible: claim.deductible ? `$${claim.deductible.toFixed(2)}` : null,
+      deductibleNumeric: claim.deductible || null,
+      approvedAmount: claim.approvedAmount ? `$${claim.approvedAmount.toFixed(2)}` : null,
+      approvedAmountNumeric: claim.approvedAmount || null,
+    };
+
     // Response with coverage information
     const response = {
       success: true,
-      data: claim,
+      data: formattedClaim,
       message: "Claim submitted successfully",
     };
 
@@ -870,17 +971,23 @@ router.post(
     if (plan && coverageLimit !== null) {
       response.coverageInfo = {
         plan: planName,
-        premium: policy.premium,
-        coverageLimit: coverageLimit,
-        claimAmount: claim.amount,
-        remainingCoverage: coverageLimit - claim.amount,
+        premium: `$${policy.premium.toFixed(2)}`,
+        premiumNumeric: policy.premium,
+        coverageLimit: `$${coverageLimit.toFixed(2)}`,
+        coverageLimitNumeric: coverageLimit,
+        claimAmount: `$${claim.amount.toFixed(2)}`,
+        claimAmountNumeric: claim.amount,
+        remainingCoverage: `$${(coverageLimit - claim.amount).toFixed(2)}`,
+        remainingCoverageNumeric: coverageLimit - claim.amount,
       };
     } else if (plan && coverageLimit === null) {
       response.coverageInfo = {
         plan: planName,
-        premium: policy.premium,
+        premium: `$${policy.premium.toFixed(2)}`,
+        premiumNumeric: policy.premium,
         coverageLimit: "Unlimited",
-        claimAmount: claim.amount,
+        claimAmount: `$${claim.amount.toFixed(2)}`,
+        claimAmountNumeric: claim.amount,
       };
     }
 
@@ -1423,7 +1530,8 @@ router.post(
 
       productGroup.packages.push({
         name: planName,
-        premium: product.basePremium,
+        premium: `$${product.basePremium.toFixed(2)}`,
+        premiumNumeric: product.basePremium, // Keep numeric value for calculations
         benefits,
         hospitals,
         phoneNumber,
