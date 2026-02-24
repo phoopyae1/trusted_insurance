@@ -354,7 +354,7 @@ router.post(
   authenticate,
   requireCustomer,
   asyncHandler(async (req, res) => {
-    // Accept productName, planName, paymentFrequency and either metadata object or flat form fields
+    // Accept productName, planName, paymentFrequency, userId (optional), and either metadata object or flat form fields
     const { productName, planName, paymentFrequency, userId, metadata: metadataObj, ...flatFormData } = req.body;
     
     // Validate that productName is provided
@@ -384,8 +384,11 @@ router.post(
     // Use metadata object if provided, otherwise use flat form data
     const formData = metadataObj || flatFormData;
 
-    // Use userId from request body if provided, otherwise use authenticated user's ID
-    const quoteUserId = userId ? validateNumber(userId, "User ID") : req.user.id;
+    // Validate and use userId from request body if provided, otherwise use authenticated user's ID
+    let quoteUserId = req.user.id; // Default to authenticated user
+    if (userId !== undefined && userId !== null) {
+      quoteUserId = validateNumber(userId, "User ID");
+    }
 
     // Fetch customer profile to get dateOfBirth for age calculation
     const customerProfile = await prisma.customerProfile.findUnique({
@@ -1031,10 +1034,417 @@ router.post(
       orderBy: { name: "asc" },
     });
 
+    // Transform products to match UI structure
+    // Group products by base name and create packages array
+    const productMap = new Map();
+    
+    // Phone number mapping based on product type
+    const phoneNumberMap = {
+      HEALTH: { base: '+65 6123 4567', increment: 1 },
+      MOTOR: { base: '+65 6123 4600', increment: 1 },
+      LIFE: { base: '+65 6123 4700', increment: 1 },
+      TRAVEL: { base: '+65 6123 4800', increment: 1 },
+      FIRE: { base: '+65 6123 4900', increment: 1 },
+      PROPERTY: { base: '+65 6123 5000', increment: 1 },
+      HOME: { base: '+65 6123 5100', increment: 1 },
+      BUSINESS: { base: '+65 6123 5200', increment: 1 },
+      LIABILITY: { base: '+65 6123 5300', increment: 1 },
+    };
+
+    // Icon mapping (for reference, UI handles icons)
+    const productIcons = {
+      HEALTH: 'LocalHospital',
+      MOTOR: 'DirectionsCar',
+      LIFE: 'Favorite',
+      TRAVEL: 'FlightTakeoff',
+      FIRE: 'LocalFireDepartment',
+      PROPERTY: 'AccountBalance',
+      HOME: 'Home',
+      BUSINESS: 'Business',
+      LIABILITY: 'Gavel',
+    };
+
+    // Description mapping
+    const productDescriptions = {
+      HEALTH: 'Comprehensive health coverage for you and your family',
+      MOTOR: 'Complete vehicle protection with flexible coverage options',
+      LIFE: 'Secure your family\'s future with comprehensive life coverage',
+      TRAVEL: 'Travel with confidence and peace of mind',
+      FIRE: 'Protect your property against fire damage and related perils',
+      PROPERTY: 'Comprehensive protection for your commercial and residential properties',
+      HOME: 'Complete protection for your home and personal belongings',
+      BUSINESS: 'Comprehensive coverage for your business operations and assets',
+      LIABILITY: 'Protect your business from third-party claims and legal liabilities',
+    };
+
+    // Process each product
+    products.forEach((product) => {
+      const nameParts = product.name.split(' - ');
+      const baseName = nameParts[0];
+      const planName = nameParts.length > 1 ? nameParts[1] : 'Basic';
+      
+      if (!productMap.has(baseName)) {
+        productMap.set(baseName, {
+          name: baseName,
+          type: product.type,
+          icon: productIcons[product.type] || 'Security',
+          description: productDescriptions[product.type] || product.description,
+          packages: [],
+        });
+      }
+
+      const productGroup = productMap.get(baseName);
+      
+      // Extract benefits from coverageLimits
+      const benefits = [];
+      if (product.coverageLimits) {
+        const limits = product.coverageLimits;
+        
+        if (product.type === 'HEALTH') {
+          if (limits.inpatient) {
+            if (limits.inpatient >= 999999999) {
+              benefits.push('Unlimited inpatient coverage');
+            } else {
+              benefits.push(`Inpatient coverage up to $${limits.inpatient.toLocaleString()} per year`);
+            }
+          }
+          if (limits.outpatient) {
+            benefits.push('Outpatient consultation coverage');
+          }
+          if (limits.annualLimit) {
+            benefits.push('Emergency room visits');
+          }
+          if (planName === 'Standard' || planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Comprehensive diagnostic tests');
+          }
+          if (planName === 'Basic' || planName === 'Standard' || planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Prescription medication coverage');
+          }
+          if (planName === 'Standard' || planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Dental care (basic)');
+            benefits.push('Maternity coverage');
+          }
+          if (planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Dental care (comprehensive)');
+            benefits.push('Mental health coverage');
+            benefits.push('Alternative medicine coverage');
+            benefits.push('Annual health checkup');
+          }
+          if (planName === 'Ultra Premium') {
+            benefits.push('International coverage');
+            benefits.push('Private room accommodation');
+            benefits.push('VIP services');
+            benefits.push('24/7 concierge service');
+          }
+        } else if (product.type === 'MOTOR') {
+          if (limits.thirdPartyLiability) {
+            benefits.push('Third-party liability coverage');
+          }
+          if (limits.fireTheft) {
+            benefits.push('Fire and theft protection');
+          }
+          if (limits.roadsideAssistance) {
+            benefits.push('Roadside assistance');
+          }
+          benefits.push('24/7 helpline');
+          if (limits.comprehensive) {
+            benefits.push('Comprehensive coverage');
+            benefits.push('Accident coverage');
+            benefits.push('Windscreen coverage');
+          }
+          if (limits.personalAccident) {
+            benefits.push('Personal accident coverage');
+            benefits.push('No-claim discount protection');
+          }
+          if (limits.rentalCar) {
+            benefits.push('Rental car coverage');
+          }
+          if (planName === 'Ultra Premium') {
+            benefits.push('Key replacement');
+            benefits.push('Towing services');
+            benefits.push('Concierge service');
+          }
+        } else if (product.type === 'LIFE') {
+          if (limits.term) {
+            if (limits.term >= 1000000) {
+              benefits.push(`Death benefit: $${limits.term.toLocaleString()}+`);
+            } else {
+              benefits.push(`Death benefit: $${limits.term.toLocaleString()}`);
+            }
+          }
+          benefits.push('Term coverage');
+          if (limits.criticalIllness) {
+            if (planName === 'Basic') {
+              benefits.push('Basic critical illness coverage');
+            } else {
+              benefits.push('Critical illness coverage');
+            }
+          }
+          if (planName === 'Standard' || planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Disability coverage');
+          }
+          if (planName === 'Premium' || planName === 'Ultra Premium') {
+            benefits.push('Accidental death benefit');
+            benefits.push('Waiver of premium');
+          }
+          if (planName === 'Ultra Premium') {
+            benefits.push('Cash value accumulation');
+            benefits.push('Estate planning benefits');
+          }
+        } else if (product.type === 'TRAVEL') {
+          if (limits.medical) {
+            benefits.push(`Medical emergency: $${limits.medical.toLocaleString()}`);
+          }
+          if (limits.tripCancellation) {
+            benefits.push('Trip cancellation coverage');
+          }
+          if (limits.baggage) {
+            benefits.push('Baggage loss coverage');
+          }
+          if (limits.flightDelay) {
+            benefits.push('Flight delay coverage');
+          }
+          if (limits.tripInterruption) {
+            benefits.push('Trip interruption coverage');
+          }
+          if (limits.adventureSports) {
+            benefits.push('Adventure sports coverage');
+            benefits.push('24/7 travel assistance');
+          }
+          if (limits.concierge) {
+            benefits.push('Concierge services');
+            benefits.push('Business travel coverage');
+          }
+        } else if (product.type === 'FIRE') {
+          if (limits.building) {
+            if (limits.building >= 999999999) {
+              benefits.push('Unlimited fire damage coverage');
+            } else {
+              benefits.push(`Fire damage coverage up to $${limits.building.toLocaleString()}`);
+            }
+          }
+          if (limits.smokeDamage) {
+            benefits.push('Smoke damage protection');
+          }
+          if (limits.lightning) {
+            benefits.push('Lightning strike coverage');
+          }
+          if (limits.explosion) {
+            benefits.push('Explosion coverage');
+          }
+          benefits.push('24/7 emergency helpline');
+          if (limits.temporaryAccommodation) {
+            benefits.push('Water damage from firefighting');
+            benefits.push('Temporary accommodation coverage');
+          }
+          if (limits.contentsReplacement) {
+            benefits.push('Contents replacement coverage');
+            benefits.push('Business interruption coverage');
+          }
+          if (limits.lossOfRent) {
+            benefits.push('Loss of rent coverage');
+            benefits.push('Debris removal coverage');
+            benefits.push('Priority claims processing');
+          }
+        } else if (product.type === 'PROPERTY') {
+          if (limits.building) {
+            if (limits.building >= 999999999) {
+              benefits.push('Unlimited property damage coverage');
+            } else {
+              benefits.push(`Property damage coverage up to $${limits.building.toLocaleString()}`);
+            }
+          }
+          if (limits.theft) {
+            benefits.push('Theft and burglary protection');
+          }
+          if (limits.vandalism) {
+            benefits.push('Vandalism coverage');
+          }
+          if (limits.naturalDisaster) {
+            benefits.push('Natural disaster coverage');
+          }
+          benefits.push('24/7 claims support');
+          if (limits.liability) {
+            benefits.push('Liability coverage');
+          }
+          if (limits.lossOfRent) {
+            benefits.push('Loss of rent coverage');
+          }
+          if (limits.equipmentBreakdown) {
+            benefits.push('Equipment breakdown coverage');
+            if (planName === 'Premium' || planName === 'Ultra Premium') {
+              benefits.push('Cyber liability coverage');
+            }
+          }
+          if (limits.businessInterruption && planName === 'Ultra Premium') {
+            benefits.push('Business interruption coverage');
+            benefits.push('Concierge claims service');
+            benefits.push('Priority processing');
+          }
+        } else if (product.type === 'HOME') {
+          if (limits.dwelling) {
+            if (limits.dwelling >= 999999999) {
+              benefits.push('Unlimited home structure coverage');
+            } else {
+              benefits.push(`Home structure coverage up to $${limits.dwelling.toLocaleString()}`);
+            }
+          }
+          if (limits.personalProperty) {
+            benefits.push(`Personal belongings coverage up to $${limits.personalProperty.toLocaleString()}`);
+          }
+          if (limits.liability) {
+            benefits.push(`Liability coverage up to $${limits.liability.toLocaleString()}`);
+          }
+          if (limits.theft) {
+            benefits.push('Theft protection');
+          }
+          if (limits.naturalDisaster) {
+            benefits.push('Natural disaster coverage');
+          }
+          if (limits.temporaryAccommodation) {
+            benefits.push('Temporary accommodation coverage');
+            benefits.push('Home assistance helpline');
+          }
+          if (limits.jewelry) {
+            benefits.push('Jewelry and valuables coverage');
+            benefits.push('Identity theft protection');
+          }
+          if (planName === 'Ultra Premium') {
+            benefits.push('Home maintenance coverage');
+            benefits.push('Concierge service');
+            benefits.push('Priority claims processing');
+          }
+        } else if (product.type === 'BUSINESS') {
+          if (limits.property) {
+            if (limits.property >= 999999999) {
+              benefits.push('Unlimited property coverage');
+            } else {
+              benefits.push(`Property coverage up to $${limits.property.toLocaleString()}`);
+            }
+          }
+          if (limits.liability) {
+            benefits.push(`Liability coverage up to $${limits.liability.toLocaleString()}`);
+          }
+          if (limits.businessInterruption) {
+            benefits.push('Business interruption coverage');
+          }
+          if (limits.equipment) {
+            benefits.push('Equipment breakdown coverage');
+          }
+          benefits.push('24/7 business support');
+          if (limits.employeeLiability) {
+            benefits.push('Employee liability coverage');
+            benefits.push('Cyber liability coverage');
+          }
+          if (limits.professionalIndemnity) {
+            benefits.push('Professional indemnity coverage');
+            benefits.push('Directors and officers coverage');
+          }
+          if (limits.international) {
+            benefits.push('International coverage');
+            benefits.push('Concierge business services');
+            benefits.push('Priority claims processing');
+          }
+        } else if (product.type === 'LIABILITY') {
+          if (limits.generalLiability) {
+            benefits.push(`General liability coverage up to $${limits.generalLiability.toLocaleString()}`);
+          }
+          benefits.push('Bodily injury protection');
+          benefits.push('Property damage protection');
+          benefits.push('Personal injury protection');
+          if (limits.legalDefense) {
+            benefits.push('Legal defense coverage');
+          }
+          if (limits.productLiability) {
+            benefits.push('Product liability coverage');
+          }
+          if (limits.completedOperations) {
+            benefits.push('Completed operations coverage');
+          }
+          if (limits.advertisingInjury) {
+            benefits.push('Advertising injury coverage');
+            benefits.push('Medical payments coverage');
+          }
+          if (limits.international) {
+            benefits.push('International liability coverage');
+            benefits.push('Crisis management coverage');
+            benefits.push('Priority legal support');
+          }
+        }
+      }
+
+      // Get phone number based on plan index
+      const planOrder = ['Basic', 'Standard', 'Premium', 'Ultra Premium'];
+      const planIndex = planOrder.indexOf(planName);
+      const phoneConfig = phoneNumberMap[product.type] || { base: '+65 6123 4000', increment: 1 };
+      const basePhone = phoneConfig.base;
+      const lastDigit = parseInt(basePhone.slice(-1));
+      const phoneNumber = basePhone.slice(0, -1) + (lastDigit + planIndex);
+
+      // Hospitals array (only for HEALTH type)
+      const hospitals = [];
+      if (product.type === 'HEALTH') {
+        const hospitalLists = {
+          Basic: [
+            'Singapore General Hospital',
+            'National University Hospital',
+            'Tan Tock Seng Hospital',
+          ],
+          Standard: [
+            'Singapore General Hospital',
+            'National University Hospital',
+            'Tan Tock Seng Hospital',
+            'Mount Elizabeth Hospital',
+            'Gleneagles Hospital',
+          ],
+          Premium: [
+            'Singapore General Hospital',
+            'National University Hospital',
+            'Tan Tock Seng Hospital',
+            'Mount Elizabeth Hospital',
+            'Gleneagles Hospital',
+            'Raffles Hospital',
+            'Parkway East Hospital',
+          ],
+          'Ultra Premium': [
+            'Singapore General Hospital',
+            'National University Hospital',
+            'Tan Tock Seng Hospital',
+            'Mount Elizabeth Hospital',
+            'Gleneagles Hospital',
+            'Raffles Hospital',
+            'Parkway East Hospital',
+            'Mount Alvernia Hospital',
+            'Farrer Park Hospital',
+          ],
+        };
+        hospitals.push(...(hospitalLists[planName] || []));
+      }
+
+      productGroup.packages.push({
+        name: planName,
+        premium: product.basePremium,
+        benefits,
+        hospitals,
+        phoneNumber,
+        popular: planName === 'Premium',
+      });
+    });
+
+    // Convert map to array and sort packages within each product
+    const transformedProducts = Array.from(productMap.values()).map((product) => {
+      // Sort packages: Basic, Standard, Premium, Ultra Premium
+      const planOrder = ['Basic', 'Standard', 'Premium', 'Ultra Premium'];
+      product.packages.sort((a, b) => {
+        return planOrder.indexOf(a.name) - planOrder.indexOf(b.name);
+      });
+      return product;
+    });
+
     res.json({
       success: true,
-      data: products,
-      count: products.length,
+      data: transformedProducts,
+      count: transformedProducts.length,
     });
   })
 );
