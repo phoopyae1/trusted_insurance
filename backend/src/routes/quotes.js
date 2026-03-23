@@ -165,9 +165,11 @@ router.patch(
       }
     }
 
+    const updateData = { status, processedAt: new Date() };
+
     const updatedQuote = await prisma.quote.update({
       where: { id: Number(req.params.id) },
-      data: { status },
+      data: updateData,
       include: { product: true, user: true, policy: true }
     });
 

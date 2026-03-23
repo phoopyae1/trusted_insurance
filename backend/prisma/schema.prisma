@@ -118,6 +118,7 @@ model Quote {
   version    Int         @default(1)
   metadata   Json
   createdAt  DateTime    @default(now())
+  processedAt DateTime    @default(now())
   policy     Policy?
 }
 
